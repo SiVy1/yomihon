@@ -76,6 +76,8 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
+import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
+import eu.kanade.tachiyomi.ui.reader.viewer.text.TextViewer
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.isNightMode
 import eu.kanade.tachiyomi.util.system.openInBrowser
@@ -92,6 +94,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.core.common.FeatureFlags
 import tachiyomi.core.common.Constants
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
@@ -517,7 +520,6 @@ class ReaderActivity : BaseActivity() {
      * Called from the presenter when a manga is ready. Used to instantiate the appropriate viewer.
      */
     private fun updateViewer() {
-        val prevViewer = viewModel.state.value.viewer
         val newViewer = ReadingMode.toViewer(viewModel.getMangaReadingMode(), this)
 
         if (window.sharedElementEnterTransition is MaterialContainerTransform) {
@@ -529,14 +531,7 @@ class ReaderActivity : BaseActivity() {
             setOrientation(viewModel.getMangaOrientation())
         }
 
-        // Destroy previous viewer if there was one
-        if (prevViewer != null) {
-            prevViewer.destroy()
-            binding.viewerContainer.removeAllViews()
-        }
-        viewModel.onViewerLoaded(newViewer)
-        updateViewerInset(readerPreferences.fullscreen.get(), readerPreferences.drawUnderCutout.get())
-        binding.viewerContainer.addView(newViewer.getView())
+        swapViewer(newViewer)
 
         if (readerPreferences.showReadingMode.get()) {
             showReadingModeToast(viewModel.getMangaReadingMode())
@@ -599,13 +594,45 @@ class ReaderActivity : BaseActivity() {
     @SuppressLint("RestrictedApi")
     private fun setChapters(viewerChapters: ViewerChapters) {
         binding.readerContainer.removeView(loadingIndicator)
-        viewModel.state.value.viewer?.setChapters(viewerChapters)
+
+        val viewer = ensureViewerForChapters(viewerChapters)
+        viewer?.setChapters(viewerChapters)
 
         lifecycleScope.launchIO {
             viewModel.getChapterUrl()?.let { url ->
                 assistUrl = url
             }
         }
+    }
+
+    private fun ensureViewerForChapters(viewerChapters: ViewerChapters): Viewer? {
+        val currentViewer = viewModel.state.value.viewer ?: return null
+        val shouldUseTextViewer = FeatureFlags.textReaderEnabled &&
+            viewerChapters.currChapter.pages?.firstOrNull()?.contentType == eu.kanade.tachiyomi.source.model.Page.ContentType.TEXT
+
+        return when {
+            shouldUseTextViewer && currentViewer !is TextViewer -> {
+                val viewer = TextViewer(this)
+                swapViewer(viewer)
+                viewer
+            }
+            !shouldUseTextViewer && currentViewer is TextViewer -> {
+                val viewer = ReadingMode.toViewer(viewModel.getMangaReadingMode(), this)
+                swapViewer(viewer)
+                viewer
+            }
+            else -> currentViewer
+        }
+    }
+
+    private fun swapViewer(newViewer: Viewer) {
+        val prevViewer = viewModel.state.value.viewer
+        prevViewer?.destroy()
+        binding.viewerContainer.removeAllViews()
+
+        viewModel.onViewerLoaded(newViewer)
+        updateViewerInset(readerPreferences.fullscreen.get(), readerPreferences.drawUnderCutout.get())
+        binding.viewerContainer.addView(newViewer.getView())
     }
 
     /**

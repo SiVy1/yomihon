@@ -24,7 +24,7 @@ android {
     namespace = "eu.kanade.tachiyomi"
 
     defaultConfig {
-        applicationId = "app.mihon"
+        applicationId = "app.yomihon"
 
         versionCode = 19
         versionName = "0.19.5"
@@ -254,6 +254,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.flexibleAdapter)
     implementation(libs.photoView)
+    implementation(libs.pdfbox.android)
     implementation(libs.directionalViewPager) {
         exclude(group = "androidx.viewpager", module = "viewpager")
     }

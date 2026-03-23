@@ -3,6 +3,7 @@ package eu.kanade.presentation.library.components
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.SelectAll
@@ -28,6 +29,7 @@ import tachiyomi.presentation.core.theme.active
 @Composable
 fun LibraryToolbar(
     hasActiveFilters: Boolean,
+    novelFilterMode: NovelFilterMode,
     selectedCount: Int,
     title: LibraryToolbarTitle,
     onClickUnselectAll: () -> Unit,
@@ -37,6 +39,7 @@ fun LibraryToolbar(
     onClickRefresh: () -> Unit,
     onClickGlobalUpdate: () -> Unit,
     onClickOpenRandomManga: () -> Unit,
+    onCycleNovelFilter: () -> Unit,
     searchQuery: String?,
     onSearchQueryChange: (String?) -> Unit,
     scrollBehavior: TopAppBarScrollBehavior?,
@@ -50,12 +53,14 @@ fun LibraryToolbar(
     else -> LibraryRegularToolbar(
         title = title,
         hasFilters = hasActiveFilters,
+        novelFilterMode = novelFilterMode,
         searchQuery = searchQuery,
         onSearchQueryChange = onSearchQueryChange,
         onClickFilter = onClickFilter,
         onClickRefresh = onClickRefresh,
         onClickGlobalUpdate = onClickGlobalUpdate,
         onClickOpenRandomManga = onClickOpenRandomManga,
+        onCycleNovelFilter = onCycleNovelFilter,
         scrollBehavior = scrollBehavior,
     )
 }
@@ -64,12 +69,14 @@ fun LibraryToolbar(
 private fun LibraryRegularToolbar(
     title: LibraryToolbarTitle,
     hasFilters: Boolean,
+    novelFilterMode: NovelFilterMode,
     searchQuery: String?,
     onSearchQueryChange: (String?) -> Unit,
     onClickFilter: () -> Unit,
     onClickRefresh: () -> Unit,
     onClickGlobalUpdate: () -> Unit,
     onClickOpenRandomManga: () -> Unit,
+    onCycleNovelFilter: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior?,
 ) {
     val pillAlpha = if (isSystemInDarkTheme()) 0.12f else 0.08f
@@ -95,8 +102,19 @@ private fun LibraryRegularToolbar(
         onChangeSearchQuery = onSearchQueryChange,
         actions = {
             val filterTint = if (hasFilters) MaterialTheme.colorScheme.active else LocalContentColor.current
+            val novelFilterTint = if (novelFilterMode == NovelFilterMode.OFF) {
+                LocalContentColor.current
+            } else {
+                MaterialTheme.colorScheme.active
+            }
             AppBarActions(
                 persistentListOf(
+                    AppBar.Action(
+                        title = novelFilterMode.toolbarLabel,
+                        icon = Icons.Outlined.AutoStories,
+                        iconTint = novelFilterTint,
+                        onClick = onCycleNovelFilter,
+                    ),
                     AppBar.Action(
                         title = stringResource(MR.strings.action_filter),
                         icon = Icons.Outlined.FilterList,
@@ -157,3 +175,9 @@ data class LibraryToolbarTitle(
     val text: String,
     val numberOfManga: Int? = null,
 )
+
+enum class NovelFilterMode(val toolbarLabel: String) {
+    OFF("Content: All"),
+    NOVEL("Content: Novel"),
+    MANGA("Content: Manga"),
+}

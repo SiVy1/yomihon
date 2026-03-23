@@ -6,9 +6,11 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
+import eu.kanade.tachiyomi.ui.reader.viewer.text.TextViewer
 import eu.kanade.tachiyomi.util.system.hasDisplayCutout
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.CheckboxItem
@@ -45,6 +47,17 @@ internal fun ColumnScope.GeneralPage(screenModel: ReaderSettingsScreenModel) {
 
     val flashColorPref = screenModel.preferences.flashColor
     val flashColor by flashColorPref.collectAsState()
+
+    val viewer by screenModel.viewerFlow.collectAsState()
+
+    val novelFontSizeSpPref = screenModel.preferences.novelFontSizeSp
+    val novelFontSizeSp by novelFontSizeSpPref.collectAsState()
+
+    val novelLineSpacingPercentPref = screenModel.preferences.novelLineSpacingPercent
+    val novelLineSpacingPercent by novelLineSpacingPercentPref.collectAsState()
+
+    val novelHorizontalPaddingDpPref = screenModel.preferences.novelHorizontalPaddingDp
+    val novelHorizontalPaddingDp by novelHorizontalPaddingDpPref.collectAsState()
 
     SettingsChipRow(MR.strings.pref_reader_theme) {
         themes.map { (labelRes, value) ->
@@ -126,5 +139,44 @@ internal fun ColumnScope.GeneralPage(screenModel: ReaderSettingsScreenModel) {
                 )
             }
         }
+    }
+
+    if (viewer is TextViewer) {
+        SliderItem(
+            value = novelFontSizeSp,
+            valueRange = 14..32,
+            label = "Novel font size",
+            valueString = "$novelFontSizeSp sp",
+            onChange = novelFontSizeSpPref::set,
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+
+        SliderItem(
+            value = novelLineSpacingPercent,
+            valueRange = 110..220,
+            label = "Novel line spacing",
+            valueString = "$novelLineSpacingPercent%",
+            onChange = novelLineSpacingPercentPref::set,
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+
+        SliderItem(
+            value = novelHorizontalPaddingDp,
+            valueRange = 8..36,
+            label = "Novel side margin",
+            valueString = "$novelHorizontalPaddingDp dp",
+            onChange = novelHorizontalPaddingDpPref::set,
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+
+        CheckboxItem(
+            label = "Novel justify text",
+            pref = screenModel.preferences.novelJustifyText,
+        )
+
+        CheckboxItem(
+            label = "Novel sepia background",
+            pref = screenModel.preferences.novelSepiaBackground,
+        )
     }
 }

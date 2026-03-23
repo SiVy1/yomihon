@@ -68,6 +68,8 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import kotlin.random.Random
 
+private const val NOVEL_GENRE_TAG = "Light Novel"
+
 class LibraryScreenModel(
     private val getLibraryManga: GetLibraryManga = Injekt.get(),
     private val getCategories: GetCategories = Injekt.get(),
@@ -389,6 +391,14 @@ class LibraryScreenModel(
             getLibraryItemPreferencesFlow(),
             downloadCache.changes,
         ) { libraryManga, preferences, _ ->
+            val sourceNovelMap = libraryManga
+                .groupBy { it.manga.source }
+                .mapValues { (_, entries) ->
+                    entries.any { item ->
+                        item.manga.genre?.any { it.equals(NOVEL_GENRE_TAG, ignoreCase = true) } == true
+                    }
+                }
+
             libraryManga.map { manga ->
                 LibraryItem(
                     libraryManga = manga,
@@ -412,6 +422,9 @@ class LibraryScreenModel(
                     } else {
                         ""
                     },
+                    isLightNovel = sourceNovelMap[manga.manga.source]
+                        ?: manga.manga.genre?.any { it.equals(NOVEL_GENRE_TAG, ignoreCase = true) }
+                        ?: false,
                 )
             }
         }

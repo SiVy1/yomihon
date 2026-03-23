@@ -13,6 +13,8 @@ open class Page(
     val url: String = "",
     var imageUrl: String? = null,
     @Transient var uri: Uri? = null, // Deprecated but can't be deleted due to extensions
+    val contentType: ContentType = ContentType.IMAGE,
+    val text: String? = null,
 ) : ProgressListener {
 
     val number: Int
@@ -55,4 +57,22 @@ open class Page(
         data object Ready : State
         data class Error(val error: Throwable) : State
     }
+
+    enum class ContentType {
+        IMAGE,
+        TEXT,
+    }
 }
+
+class TextPage(
+    index: Int,
+    url: String = "",
+    text: String,
+) : Page(
+    index = index,
+    url = url,
+    imageUrl = null,
+    uri = null,
+    contentType = ContentType.TEXT,
+    text = text,
+)

@@ -47,6 +47,19 @@ internal fun LanguageBadge(
     }
 }
 
+@Composable
+internal fun LightNovelBadge(
+    isLightNovel: Boolean,
+) {
+    if (isLightNovel) {
+        Badge(
+            text = "LN",
+            color = MaterialTheme.colorScheme.primary,
+            textColor = MaterialTheme.colorScheme.onPrimary,
+        )
+    }
+}
+
 @PreviewLightDark
 @Composable
 private fun BadgePreview() {
@@ -54,6 +67,7 @@ private fun BadgePreview() {
         Column {
             DownloadsBadge(count = 10)
             UnreadBadge(count = 10)
+            LightNovelBadge(isLightNovel = true)
             LanguageBadge(isLocal = true, sourceLanguage = "EN")
             LanguageBadge(isLocal = false, sourceLanguage = "EN")
         }

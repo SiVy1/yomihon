@@ -87,6 +87,16 @@ class ReaderPreferences(
 
     val webtoonDisableZoomOut: Preference<Boolean> = preferenceStore.getBoolean("webtoon_disable_zoom_out", false)
 
+    val novelFontSizeSp: Preference<Int> = preferenceStore.getInt("novel_font_size_sp", 18)
+
+    val novelLineSpacingPercent: Preference<Int> = preferenceStore.getInt("novel_line_spacing_percent", 140)
+
+    val novelHorizontalPaddingDp: Preference<Int> = preferenceStore.getInt("novel_horizontal_padding_dp", 20)
+
+    val novelJustifyText: Preference<Boolean> = preferenceStore.getBoolean("novel_justify_text", false)
+
+    val novelSepiaBackground: Preference<Boolean> = preferenceStore.getBoolean("novel_sepia_background", true)
+
     // endregion
 
     // region Split two-page spread

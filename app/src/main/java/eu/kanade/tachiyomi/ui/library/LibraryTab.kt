@@ -31,6 +31,7 @@ import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.library.DeleteLibraryMangaDialog
 import eu.kanade.presentation.library.LibrarySettingsDialog
 import eu.kanade.presentation.library.components.LibraryContent
+import eu.kanade.presentation.library.components.NovelFilterMode
 import eu.kanade.presentation.library.components.LibraryToolbar
 import eu.kanade.presentation.manga.components.LibraryBottomActionMenu
 import eu.kanade.presentation.more.onboarding.GETTING_STARTED_URL
@@ -115,6 +116,7 @@ data object LibraryTab : Tab {
                 )
                 LibraryToolbar(
                     hasActiveFilters = state.hasActiveFilters,
+                    novelFilterMode = state.searchQuery.toNovelFilterMode(),
                     selectedCount = state.selection.size,
                     title = title,
                     onClickUnselectAll = screenModel::clearSelection,
@@ -134,6 +136,10 @@ data object LibraryTab : Tab {
                                 )
                             }
                         }
+                    },
+                    onCycleNovelFilter = {
+                        val nextMode = state.searchQuery.toNovelFilterMode().next()
+                        screenModel.search(state.searchQuery.withNovelFilter(nextMode))
                     },
                     searchQuery = state.searchQuery,
                     onSearchQueryChange = screenModel::search,
@@ -285,4 +291,46 @@ data object LibraryTab : Tab {
     // For opening settings sheet in LibraryController
     private val requestSettingsSheetEvent = Channel<Unit>()
     private suspend fun requestOpenSettingsSheet() = requestSettingsSheetEvent.send(Unit)
+}
+
+private fun String?.toNovelFilterMode(): NovelFilterMode {
+    val tokens = this.orEmpty().split(' ').mapNotNull { it.trim().takeIf(String::isNotBlank) }
+    return when {
+        tokens.any { it.equals("type:novel", ignoreCase = true) || it.equals("type:ln", ignoreCase = true) } -> {
+            NovelFilterMode.NOVEL
+        }
+        tokens.any { it.equals("type:manga", ignoreCase = true) || it.equals("type:comic", ignoreCase = true) } -> {
+            NovelFilterMode.MANGA
+        }
+        else -> NovelFilterMode.OFF
+    }
+}
+
+private fun NovelFilterMode.next(): NovelFilterMode {
+    return when (this) {
+        NovelFilterMode.OFF -> NovelFilterMode.NOVEL
+        NovelFilterMode.NOVEL -> NovelFilterMode.MANGA
+        NovelFilterMode.MANGA -> NovelFilterMode.OFF
+    }
+}
+
+private fun String?.withNovelFilter(mode: NovelFilterMode): String? {
+    val tokens = this.orEmpty()
+        .split(' ')
+        .mapNotNull { it.trim().takeIf(String::isNotBlank) }
+        .filterNot {
+            it.equals("type:novel", ignoreCase = true) ||
+                it.equals("type:ln", ignoreCase = true) ||
+                it.equals("type:manga", ignoreCase = true) ||
+                it.equals("type:comic", ignoreCase = true)
+        }
+        .toMutableList()
+
+    when (mode) {
+        NovelFilterMode.OFF -> Unit
+        NovelFilterMode.NOVEL -> tokens.add("type:novel")
+        NovelFilterMode.MANGA -> tokens.add("type:manga")
+    }
+
+    return tokens.joinToString(" ").ifBlank { null }
 }

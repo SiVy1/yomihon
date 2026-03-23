@@ -199,6 +199,8 @@ actual class LocalSource(
                     }
                 }
             }
+
+            maybeAddLightNovelTag(manga, mangaDirFiles)
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e) { "Error setting manga details from local metadata for ${manga.title}" }
         }
@@ -254,12 +256,42 @@ actual class LocalSource(
         comicInfo.translator?.let { chapter.scanlator = it.value }
     }
 
+    private fun maybeAddLightNovelTag(manga: SManga, files: Array<out UniFile>) {
+        val hasTextFiles = files.any {
+            val format = runCatching { Format.valueOf(it) }.getOrNull()
+            format is Format.Text || format is Format.Pdf
+        }
+
+        val hasTextEpub = !hasTextFiles && files.any {
+            val format = runCatching { Format.valueOf(it) }.getOrNull()
+            format is Format.Epub && isTextEpub(format.file)
+        }
+
+        if (!hasTextFiles && !hasTextEpub) return
+
+        val genres = manga.getGenres().orEmpty().toMutableList()
+        if (genres.none { it.equals(LIGHT_NOVEL_GENRE, ignoreCase = true) }) {
+            genres.add(LIGHT_NOVEL_GENRE)
+            manga.genre = genres.joinToString(separator = ", ")
+        }
+    }
+
+    private fun isTextEpub(file: UniFile): Boolean {
+        return runCatching {
+            file.epubReader(context).use { reader ->
+                val hasImages = reader.getImagesFromPages().isNotEmpty()
+                val hasText = reader.getTextFromPages().any { it.isNotBlank() }
+                !hasImages && hasText
+            }
+        }.getOrDefault(false)
+    }
+
     // Chapters
     override suspend fun getChapterList(manga: SManga): List<SChapter> = withIOContext {
         val chapters = fileSystem.getFilesInMangaDirectory(manga.url)
             // Only keep supported formats
             .filterNot { it.name.orEmpty().startsWith('.') }
-            .filter { it.isDirectory || Archive.isSupported(it) || it.extension.equals("epub", true) }
+            .filter { Format.isSupported(it) }
             .map { chapterFile ->
                 SChapter.create().apply {
                     url = "${manga.url}/${chapterFile.name}"
@@ -354,6 +386,8 @@ actual class LocalSource(
                         entry?.let { coverManager.update(manga, epub.getInputStream(it)!!) }
                     }
                 }
+                is Format.Text,
+                is Format.Pdf -> null
             }
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e) { "Error updating cover for ${manga.title}" }
@@ -364,6 +398,7 @@ actual class LocalSource(
     companion object {
         const val ID = 0L
         const val HELP_URL = "https://mihon.app/docs/guides/local-source/"
+        private const val LIGHT_NOVEL_GENRE = "Light Novel"
 
         private val LATEST_THRESHOLD = 7.days.inWholeMilliseconds
     }

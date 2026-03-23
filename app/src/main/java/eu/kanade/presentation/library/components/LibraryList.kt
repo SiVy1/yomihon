@@ -54,6 +54,7 @@ internal fun LibraryList(
                     lastModified = manga.coverLastModified,
                 ),
                 badge = {
+                    LightNovelBadge(isLightNovel = libraryItem.isLightNovel)
                     DownloadsBadge(count = libraryItem.downloadCount)
                     UnreadBadge(count = libraryItem.unreadCount)
                     LanguageBadge(

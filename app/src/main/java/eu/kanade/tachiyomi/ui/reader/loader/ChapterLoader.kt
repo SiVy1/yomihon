@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.data.download.DownloadProvider
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
+import mihon.core.common.FeatureFlags
 import mihon.core.archive.archiveReader
 import mihon.core.archive.epubReader
 import tachiyomi.core.common.i18n.stringResource
@@ -97,7 +98,26 @@ class ChapterLoader(
                 when (format) {
                     is Format.Directory -> DirectoryPageLoader(format.file)
                     is Format.Archive -> ArchivePageLoader(format.file.archiveReader(context))
-                    is Format.Epub -> EpubPageLoader(format.file.epubReader(context))
+                    is Format.Epub -> {
+                        val reader = format.file.epubReader(context)
+                        val hasImages = reader.getImagesFromPages().isNotEmpty()
+                        val hasText = reader.getTextFromPages().any { it.isNotBlank() }
+                        if (FeatureFlags.textReaderEnabled && !hasImages && hasText) {
+                            EpubTextPageLoader(reader)
+                        } else {
+                            EpubPageLoader(reader)
+                        }
+                    }
+                    is Format.Text -> if (FeatureFlags.textReaderEnabled) {
+                        LocalTextPageLoader(format.file)
+                    } else {
+                        error(context.stringResource(MR.strings.loader_not_implemented_error))
+                    }
+                    is Format.Pdf -> if (FeatureFlags.textReaderEnabled) {
+                        PdfTextPageLoader(format.file)
+                    } else {
+                        error(context.stringResource(MR.strings.loader_not_implemented_error))
+                    }
                 }
             }
             source is HttpSource -> HttpPageLoader(chapter, source)

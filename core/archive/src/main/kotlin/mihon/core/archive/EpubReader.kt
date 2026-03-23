@@ -35,6 +35,22 @@ class EpubReader(private val reader: ArchiveReader) : Closeable by reader {
     }
 
     /**
+     * Returns plain text content for each spine XHTML page in order.
+     */
+    fun getTextFromPages(): List<String> {
+        val ref = getPackageHref()
+        val doc = getPackageDocument(ref)
+        val pages = getPagesFromDocument(doc)
+        val basePath = getParentDirectory(ref)
+        return pages.mapNotNull { page ->
+            val entryPath = resolveZipPath(basePath, page)
+            getInputStream(entryPath)?.use { stream ->
+                Jsoup.parse(stream, null, "").text().trim()
+            }
+        }
+    }
+
+    /**
      * Returns the path to the package document.
      */
     fun getPackageHref(): String {

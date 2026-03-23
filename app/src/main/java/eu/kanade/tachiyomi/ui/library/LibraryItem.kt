@@ -8,6 +8,7 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
 private const val LOCAL_SOURCE_ID_ALIAS = "local"
+private const val NOVEL_GENRE_TAG = "Light Novel"
 
 data class LibraryItem(
     val libraryManga: LibraryManga,
@@ -15,6 +16,9 @@ data class LibraryItem(
     val unreadCount: Long = -1,
     val isLocal: Boolean = false,
     val sourceLanguage: String = "",
+    val isLightNovel: Boolean = libraryManga.manga.genre
+        ?.any { it.equals(NOVEL_GENRE_TAG, ignoreCase = true) }
+        ?: false,
     private val sourceManager: SourceManager = Injekt.get(),
 ) {
     val id: Long = libraryManga.id
@@ -36,6 +40,12 @@ data class LibraryItem(
                 source.id == LocalSource.ID
             } else {
                 source.id == querySource.toLongOrNull()
+            }
+        } else if (constraint.startsWith("type:", true)) {
+            return when (constraint.substringAfter("type:").trim().lowercase()) {
+                "novel", "ln", "lightnovel", "light_novel", "light-novel" -> isLightNovel
+                "manga", "comic" -> !isLightNovel
+                else -> false
             }
         }
         return libraryManga.manga.title.contains(constraint, true) ||
