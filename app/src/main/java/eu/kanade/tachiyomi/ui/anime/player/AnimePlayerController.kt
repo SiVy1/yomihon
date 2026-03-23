@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tachiyomi.domain.anime.model.EpisodeUpdate
 import tachiyomi.domain.anime.repository.EpisodeRepository
 import uy.kohesive.injekt.Injekt
@@ -133,14 +134,17 @@ class AnimePlayerController(
     }
 
     private fun restoreSavedProgress() {
-        scope.launch(Dispatchers.IO) {
-            val episode = episodeRepository.getEpisodeById(request.episodeId)
+        scope.launch {
+            val episode = withContext(Dispatchers.IO) {
+                episodeRepository.getEpisodeById(request.episodeId)
+            }
+            val playbackSpeed = player.playbackParameters.speed
             _state.update {
                 it.copy(
                     isLoading = false,
                     positionMs = (episode?.lastSecondsWatched ?: 0L) * 1000L,
                     durationMs = (episode?.totalSeconds ?: 0L) * 1000L,
-                    playbackSpeed = player.playbackParameters.speed,
+                    playbackSpeed = playbackSpeed,
                 )
             }
         }
