@@ -51,6 +51,8 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.source.model.SAnime
 import eu.kanade.tachiyomi.source.model.SEpisode
 import eu.kanade.tachiyomi.source.model.TorrentDescriptor
+import eu.kanade.tachiyomi.ui.anime.player.AnimePlaybackRequest
+import eu.kanade.tachiyomi.ui.anime.player.AnimePlayerActivity
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import tachiyomi.domain.anime.model.Anime
@@ -72,6 +74,7 @@ data class AnimeDetailsScreen(
         val state by screenModel.state.collectAsState()
         val navigator = LocalNavigator.currentOrThrow
         val snackbarHostState = remember { SnackbarHostState() }
+        val context = LocalContext.current
 
         LaunchedEffect(state.errorMessage) {
             state.errorMessage?.let {
@@ -142,6 +145,24 @@ data class AnimeDetailsScreen(
                     episode = dialog.episode,
                     descriptors = dialog.descriptors,
                     onLaunchDescriptor = { screenModel.onEpisodeLaunched(dialog.episode) },
+                    onPlayInApp = { descriptor ->
+                        val localEpisode = state.localEpisodes[dialog.episode.url] ?: return@TorrentOptionsDialog
+                        screenModel.onEpisodeLaunched(dialog.episode)
+                        context.startActivity(
+                            AnimePlayerActivity.newIntent(
+                                context = context,
+                                request = AnimePlaybackRequest(
+                                    sourceId = sourceId,
+                                    episodeId = localEpisode.id,
+                                    episodeUrl = dialog.episode.url,
+                                    episodeName = dialog.episode.name,
+                                    animeTitle = state.anime.title,
+                                    descriptor = descriptor,
+                                ),
+                            ),
+                        )
+                        screenModel.setDialog(null)
+                    },
                     onDismissRequest = { screenModel.setDialog(null) },
                 )
             }
@@ -320,6 +341,7 @@ private fun TorrentOptionsDialog(
     episode: SEpisode,
     descriptors: List<TorrentDescriptor>,
     onLaunchDescriptor: () -> Unit,
+    onPlayInApp: (TorrentDescriptor) -> Unit,
     onDismissRequest: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -374,6 +396,9 @@ private fun TorrentOptionsDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End,
                             ) {
+                                IconButton(onClick = { onPlayInApp(descriptor) }) {
+                                    Icon(Icons.Outlined.PlayCircle, contentDescription = "Play in app")
+                                }
                                 descriptor.magnetUri?.let { magnet ->
                                     IconButton(onClick = { context.copyToClipboard("Magnet", magnet) }) {
                                         Icon(Icons.Outlined.CopyAll, contentDescription = "Copy magnet")

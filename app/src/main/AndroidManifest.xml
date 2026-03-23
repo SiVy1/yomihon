@@ -150,6 +150,11 @@
         </activity>
 
         <activity
+            android:name=".ui.anime.player.AnimePlayerActivity"
+            android:exported="false"
+            android:launchMode="singleTask" />
+
+        <activity
             android:name=".ui.security.UnlockActivity"
             android:exported="false"
             android:theme="@style/Theme.Tachiyomi" />

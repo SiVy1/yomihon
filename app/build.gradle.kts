@@ -215,6 +215,8 @@ dependencies {
     implementation(libs.androidx.profileInstaller)
 
     implementation(libs.bundles.androidx.lifecycle)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
 
     // Job scheduling
     implementation(libs.androidx.work)
