@@ -63,6 +63,7 @@ object Notifications {
      */
     const val CHANNEL_INCOGNITO_MODE = "incognito_mode_channel"
     const val ID_INCOGNITO_MODE = -701
+    const val ID_ANIME_PLAYER = -801
 
     /**
      * Notification channel and ids used for app and extension updates.

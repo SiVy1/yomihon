@@ -27,6 +27,7 @@
         tools:ignore="QueryAllPackagesPermission" />
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission
         android:name="android.permission.READ_APP_SPECIFIC_LOCALES"
         tools:ignore="ProtectedPermissions" />
@@ -153,6 +154,11 @@
             android:name=".ui.anime.player.AnimePlayerActivity"
             android:exported="false"
             android:launchMode="singleTask" />
+
+        <service
+            android:name=".ui.anime.player.TorrentPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <activity
             android:name=".ui.security.UnlockActivity"

@@ -41,6 +41,7 @@ data class TorrentPlaybackSnapshot(
     val selectedVideoFileId: String? = null,
     val selectedSubtitleTrackId: String? = null,
     val proxyUrl: String? = null,
+    val statusMessage: String? = null,
     val errorMessage: String? = null,
 )
 

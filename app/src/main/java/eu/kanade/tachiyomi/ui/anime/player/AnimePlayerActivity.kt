@@ -13,7 +13,7 @@ import eu.kanade.tachiyomi.util.view.setComposeContent
 class AnimePlayerActivity : BaseActivity() {
 
     companion object {
-        private const val PLAYBACK_REQUEST_KEY = "playback_request"
+        const val PLAYBACK_REQUEST_KEY = "playback_request"
 
         fun newIntent(
             context: Context,
@@ -22,6 +22,15 @@ class AnimePlayerActivity : BaseActivity() {
             return Intent(context, AnimePlayerActivity::class.java).apply {
                 putExtra(PLAYBACK_REQUEST_KEY, request)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+        }
+
+        fun readPlaybackRequestFromIntent(intent: Intent): AnimePlaybackRequest? {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getSerializableExtra(PLAYBACK_REQUEST_KEY, AnimePlaybackRequest::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getSerializableExtra(PLAYBACK_REQUEST_KEY) as? AnimePlaybackRequest
             }
         }
     }
@@ -50,6 +59,8 @@ class AnimePlayerActivity : BaseActivity() {
                 state = state,
                 player = controller.player,
                 onBack = ::finish,
+                onSelectVideoFile = controller::selectVideoFile,
+                onSelectSubtitleTrack = controller::selectSubtitleTrack,
             )
         }
     }
@@ -65,17 +76,12 @@ class AnimePlayerActivity : BaseActivity() {
     }
 
     override fun onDestroy() {
-        controller?.release()
+        controller?.release(stopPlaybackSession = isFinishing)
         controller = null
         super.onDestroy()
     }
 
     private fun readPlaybackRequest(): AnimePlaybackRequest? {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getSerializableExtra(PLAYBACK_REQUEST_KEY, AnimePlaybackRequest::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getSerializableExtra(PLAYBACK_REQUEST_KEY) as? AnimePlaybackRequest
-        }
+        return readPlaybackRequestFromIntent(intent)
     }
 }

@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.anime.player
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,17 +12,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.ClosedCaptionOff
 import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.outlined.QueuePlayNext
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,19 +47,27 @@ fun AnimePlayerScreen(
     state: AnimePlayerState,
     player: ExoPlayer,
     onBack: () -> Unit,
+    onSelectVideoFile: (String) -> Unit,
+    onSelectSubtitleTrack: (String?) -> Unit,
 ) {
+    var showFileDialog by remember(state.availableVideoFiles, state.selectedVideoFileId) { mutableStateOf(false) }
+    var showSubtitleDialog by remember(state.availableSubtitleTracks, state.selectedSubtitleTrackId) { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface)
-                    .padding(horizontal = MaterialTheme.padding.small, vertical = MaterialTheme.padding.xSmall),
+                    .padding(
+                        horizontal = MaterialTheme.padding.small,
+                        vertical = MaterialTheme.padding.extraSmall,
+                    ),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -124,6 +140,16 @@ fun AnimePlayerScreen(
                 PlaybackStats(state = state)
             }
 
+            if (state.availableVideoFiles.isNotEmpty() || state.availableSubtitleTracks.isNotEmpty()) {
+                item {
+                    PlayerActions(
+                        state = state,
+                        onOpenFiles = { showFileDialog = true },
+                        onOpenSubtitles = { showSubtitleDialog = true },
+                    )
+                }
+            }
+
             if (state.availableVideoFiles.isNotEmpty()) {
                 item {
                     SectionTitle("Torrent files")
@@ -187,6 +213,30 @@ fun AnimePlayerScreen(
             }
         }
     }
+
+    if (showFileDialog && state.availableVideoFiles.isNotEmpty()) {
+        TrackListDialog(
+            title = "Choose file",
+            selectedId = state.selectedVideoFileId,
+            items = state.availableVideoFiles.map { it.id to it.name },
+            onSelect = {
+                onSelectVideoFile(it)
+                showFileDialog = false
+            },
+            onDismiss = { showFileDialog = false },
+        )
+    }
+
+    if (showSubtitleDialog) {
+        SubtitleTrackDialog(
+            state = state,
+            onSelect = {
+                onSelectSubtitleTrack(it)
+                showSubtitleDialog = false
+            },
+            onDismiss = { showSubtitleDialog = false },
+        )
+    }
 }
 
 @Composable
@@ -218,6 +268,154 @@ private fun PlaybackStats(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+@Composable
+private fun PlayerActions(
+    state: AnimePlayerState,
+    onOpenFiles: () -> Unit,
+    onOpenSubtitles: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = MaterialTheme.padding.medium),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
+    ) {
+        if (state.availableVideoFiles.isNotEmpty()) {
+            FilledTonalButton(
+                onClick = onOpenFiles,
+                modifier = Modifier.weight(1f),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.QueuePlayNext,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    text = if (state.selectedVideoFileId == null) "Choose file" else "Change file",
+                    modifier = Modifier.padding(start = MaterialTheme.padding.extraSmall),
+                )
+            }
+        }
+
+        FilledTonalButton(
+            onClick = onOpenSubtitles,
+            modifier = Modifier.weight(1f),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.ClosedCaptionOff,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = if (state.selectedSubtitleTrackId == null) "Subtitles off" else "Subtitles",
+                modifier = Modifier.padding(start = MaterialTheme.padding.extraSmall),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TrackListDialog(
+    title: String,
+    selectedId: String?,
+    items: List<Pair<String, String>>,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small)) {
+                items.forEach { (id, label) ->
+                    Text(
+                        text = if (id == selectedId) "* $label" else label,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                if (id == selectedId) {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                } else {
+                                    Color.Transparent
+                                },
+                                shape = MaterialTheme.shapes.small,
+                            )
+                            .clickable { onSelect(id) }
+                            .padding(MaterialTheme.padding.small),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {},
+    )
+}
+
+@Composable
+private fun SubtitleTrackDialog(
+    state: AnimePlayerState,
+    onSelect: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Subtitle tracks") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small)) {
+                Text(
+                    text = if (state.selectedSubtitleTrackId == null) "* Disable subtitles" else "Disable subtitles",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            if (state.selectedSubtitleTrackId == null) {
+                                MaterialTheme.colorScheme.secondaryContainer
+                            } else {
+                                Color.Transparent
+                            },
+                            shape = MaterialTheme.shapes.small,
+                        )
+                        .clickable { onSelect(null) }
+                        .padding(MaterialTheme.padding.small),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                state.availableSubtitleTracks.forEach { track ->
+                    Text(
+                        text = if (track.id == state.selectedSubtitleTrackId) {
+                            "* ${track.label}"
+                        } else {
+                            track.label
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                if (track.id == state.selectedSubtitleTrackId) {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                } else {
+                                    Color.Transparent
+                                },
+                                shape = MaterialTheme.shapes.small,
+                            )
+                            .clickable { onSelect(track.id) }
+                            .padding(MaterialTheme.padding.small),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    track.language?.takeIf { it.isNotBlank() }?.let {
+                        Text(
+                            text = it,
+                            modifier = Modifier.padding(start = MaterialTheme.padding.small),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {},
+    )
 }
 
 @Composable
