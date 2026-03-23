@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.browse.components.BaseSourceItem
+import eu.kanade.tachiyomi.source.SourceContentType
 import eu.kanade.tachiyomi.ui.browse.source.SourcesScreenModel
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreenModel.Listing
 import eu.kanade.tachiyomi.util.system.LocaleHelper
@@ -36,6 +37,7 @@ import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.presentation.core.theme.header
 import tachiyomi.presentation.core.util.plus
+import tachiyomi.presentation.core.util.secondaryItemAlpha
 import tachiyomi.source.local.isLocal
 
 @Composable
@@ -119,6 +121,37 @@ private fun SourceItem(
         source = source,
         onClickItem = { onClickItem(source, Listing.Popular) },
         onLongClickItem = { onLongClickItem(source) },
+        content = { item, sourceLangString ->
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = MaterialTheme.padding.medium)
+                    .weight(1f),
+            ) {
+                Text(
+                    text = item.name,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+
+                val subtitle = buildList {
+                    sourceLangString?.let(::add)
+                    if (item.contentType == SourceContentType.ANIME) {
+                        add("Anime")
+                    }
+                }.joinToString(" - ")
+
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        text = subtitle,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.secondaryItemAlpha(),
+                    )
+                }
+            }
+        },
         action = {
             if (source.supportsLatest) {
                 TextButton(onClick = { onClickItem(source, Listing.Latest) }) {

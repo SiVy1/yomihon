@@ -15,6 +15,8 @@ import eu.kanade.presentation.browse.SourceOptionsDialog
 import eu.kanade.presentation.browse.SourcesScreen
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.TabContent
+import eu.kanade.tachiyomi.source.SourceContentType
+import eu.kanade.tachiyomi.ui.browse.source.anime.BrowseAnimeSourceScreen
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
 import kotlinx.collections.immutable.persistentListOf
@@ -48,7 +50,10 @@ fun Screen.sourcesTab(): TabContent {
                 state = state,
                 contentPadding = contentPadding,
                 onClickItem = { source, listing ->
-                    navigator.push(BrowseSourceScreen(source.id, listing.query))
+                    when (source.contentType) {
+                        SourceContentType.ANIME -> navigator.push(BrowseAnimeSourceScreen(source.id, listing.query))
+                        SourceContentType.MANGA -> navigator.push(BrowseSourceScreen(source.id, listing.query))
+                    }
                 },
                 onClickPin = screenModel::togglePin,
                 onLongClickItem = screenModel::showSourceDialog,

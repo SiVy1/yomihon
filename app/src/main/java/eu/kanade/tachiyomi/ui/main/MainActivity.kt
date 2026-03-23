@@ -71,6 +71,8 @@ import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.extension.api.ExtensionApi
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
+import eu.kanade.tachiyomi.ui.browse.source.anime.AnimeDetailsScreen
+import eu.kanade.tachiyomi.ui.browse.source.anime.BrowseAnimeSourceScreen
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
 import eu.kanade.tachiyomi.ui.deeplink.DeepLinkScreen
@@ -179,7 +181,12 @@ class MainActivity : BaseActivity() {
                     }
                 }
                 LaunchedEffect(navigator.lastItem) {
-                    (navigator.lastItem as? BrowseSourceScreen)?.sourceId
+                    when (val screen = navigator.lastItem) {
+                        is BrowseSourceScreen -> screen.sourceId
+                        is BrowseAnimeSourceScreen -> screen.sourceId
+                        is AnimeDetailsScreen -> screen.sourceId
+                        else -> null
+                    }
                         .let(getIncognitoState::subscribe)
                         .collectLatest { incognito = it }
                 }
@@ -228,6 +235,8 @@ class MainActivity : BaseActivity() {
                         .onEach {
                             val currentScreen = navigator.lastItem
                             if (currentScreen is BrowseSourceScreen ||
+                                currentScreen is BrowseAnimeSourceScreen ||
+                                currentScreen is AnimeDetailsScreen ||
                                 (currentScreen is MangaScreen && currentScreen.fromSource)
                             ) {
                                 navigator.popUntilRoot()

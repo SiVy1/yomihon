@@ -1,6 +1,8 @@
 package tachiyomi.domain.source.model
 
 import eu.kanade.tachiyomi.source.Source
+import eu.kanade.tachiyomi.source.SourceContentType
+import eu.kanade.tachiyomi.source.contentType
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
@@ -9,6 +11,7 @@ class StubSource(
     override val id: Long,
     override val lang: String,
     override val name: String,
+    val contentType: SourceContentType = SourceContentType.MANGA,
 ) : Source {
 
     private val isInvalid: Boolean = name.isBlank() || lang.isBlank()
@@ -26,7 +29,12 @@ class StubSource(
 
     companion object {
         fun from(source: Source): StubSource {
-            return StubSource(id = source.id, lang = source.lang, name = source.name)
+            return StubSource(
+                id = source.id,
+                lang = source.lang,
+                name = source.name,
+                contentType = source.contentType,
+            )
         }
     }
 }

@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.parseAs
+import eu.kanade.tachiyomi.source.SourceContentType
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.serialization.Serializable
@@ -158,6 +159,7 @@ private data class ExtensionSourceJsonObject(
     val lang: String,
     val name: String,
     val baseUrl: String,
+    val contentType: String? = null,
 )
 
 private val extensionSourceMapper: (ExtensionSourceJsonObject) -> Extension.Available.Source = {
@@ -166,5 +168,9 @@ private val extensionSourceMapper: (ExtensionSourceJsonObject) -> Extension.Avai
         lang = it.lang,
         name = it.name,
         baseUrl = it.baseUrl,
+        contentType = when (it.contentType?.uppercase()) {
+            SourceContentType.ANIME.name -> SourceContentType.ANIME
+            else -> SourceContentType.MANGA
+        },
     )
 }

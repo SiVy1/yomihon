@@ -1,5 +1,6 @@
 package tachiyomi.data.source
 
+import eu.kanade.tachiyomi.source.contentType
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -22,6 +23,16 @@ class SourceRepositoryImpl(
 
     override fun getSources(): Flow<List<DomainSource>> {
         return sourceManager.catalogueSources.map { sources ->
+            sources.map {
+                mapSourceToDomainSource(it).copy(
+                    supportsLatest = it.supportsLatest,
+                )
+            }
+        }
+    }
+
+    override fun getAnimeSources(): Flow<List<DomainSource>> {
+        return sourceManager.animeCatalogueSources.map { sources ->
             sources.map {
                 mapSourceToDomainSource(it).copy(
                     supportsLatest = it.supportsLatest,
@@ -93,5 +104,9 @@ class SourceRepositoryImpl(
         name = source.name,
         supportsLatest = false,
         isStub = false,
+        contentType = when (source) {
+            is StubSource -> source.contentType
+            else -> source.contentType
+        },
     )
 }

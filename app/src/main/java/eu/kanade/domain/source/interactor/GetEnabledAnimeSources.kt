@@ -7,11 +7,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import tachiyomi.domain.source.model.Pin
 import tachiyomi.domain.source.model.Pins
 import tachiyomi.domain.source.model.Source
-import tachiyomi.domain.source.repository.SourceRepository
-import tachiyomi.source.local.isLocal
 
-class GetEnabledSources(
-    private val repository: SourceRepository,
+class GetEnabledAnimeSources(
+    private val repository: tachiyomi.domain.source.repository.SourceRepository,
     private val preferences: SourcePreferences,
 ) {
 
@@ -21,11 +19,10 @@ class GetEnabledSources(
             preferences.enabledLanguages.changes(),
             preferences.disabledSources.changes(),
             preferences.lastUsedSource.changes(),
-            repository.getSources(),
             repository.getAnimeSources(),
-        ) { pinnedSourceIds, enabledLanguages, disabledSources, lastUsedSource, mangaSources, animeSources ->
-            (mangaSources + animeSources)
-                .filter { it.lang in enabledLanguages || it.isLocal() }
+        ) { pinnedSourceIds, enabledLanguages, disabledSources, lastUsedSource, sources ->
+            sources
+                .filter { it.lang in enabledLanguages }
                 .filterNot { it.id.toString() in disabledSources }
                 .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
                 .flatMap {

@@ -1,5 +1,7 @@
 package tachiyomi.domain.source.model
 
+import eu.kanade.tachiyomi.source.SourceContentType
+
 data class Source(
     val id: Long,
     val lang: String,
@@ -8,6 +10,7 @@ data class Source(
     val isStub: Boolean,
     val pin: Pins = Pins.unpinned,
     val isUsedLast: Boolean = false,
+    val contentType: SourceContentType = SourceContentType.MANGA,
 ) {
 
     val visualName: String

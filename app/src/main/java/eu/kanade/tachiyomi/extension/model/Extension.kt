@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.extension.model
 
 import android.graphics.drawable.Drawable
+import eu.kanade.tachiyomi.source.SourceContentType
 import eu.kanade.tachiyomi.source.Source
 import tachiyomi.domain.source.model.StubSource
 
@@ -50,12 +51,14 @@ sealed class Extension {
             val lang: String,
             val name: String,
             val baseUrl: String,
+            val contentType: SourceContentType = SourceContentType.MANGA,
         ) {
             fun toStubSource(): StubSource {
                 return StubSource(
                     id = this.id,
                     lang = this.lang,
                     name = this.name,
+                    contentType = this.contentType,
                 )
             }
         }

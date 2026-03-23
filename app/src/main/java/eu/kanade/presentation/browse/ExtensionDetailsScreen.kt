@@ -52,7 +52,9 @@ import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.TrailingWidgetBuffer
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.extension.model.Extension
+import eu.kanade.tachiyomi.source.SourceContentType
 import eu.kanade.tachiyomi.source.ConfigurableSource
+import eu.kanade.tachiyomi.source.contentType
 import eu.kanade.tachiyomi.ui.browse.extension.details.ExtensionDetailsScreenModel
 import eu.kanade.tachiyomi.util.system.LocaleHelper
 import eu.kanade.tachiyomi.util.system.copyToClipboard
@@ -427,6 +429,10 @@ private fun SourceSwitchPreference(
             source.source.toString()
         } else {
             LocaleHelper.getSourceDisplayName(source.source.lang, context)
+        },
+        subtitle = when (source.source.contentType) {
+            SourceContentType.ANIME -> "Anime source"
+            SourceContentType.MANGA -> null
         },
         widget = {
             Row(
