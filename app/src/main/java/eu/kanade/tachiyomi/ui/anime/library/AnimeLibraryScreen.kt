@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.calculateBottomPadding
-import androidx.compose.foundation.layout.calculateTopPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -16,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -38,12 +37,16 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
 import eu.kanade.domain.anime.model.toSAnime
+import eu.kanade.presentation.components.AppBar
+import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.AppBarTitle
 import eu.kanade.presentation.components.SearchToolbar
 import eu.kanade.presentation.util.relativeTimeSpanString
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.ui.anime.history.AnimeHistoryScreen
 import eu.kanade.tachiyomi.ui.browse.source.anime.AnimeDetailsScreen
+import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.domain.anime.model.LibraryAnime
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.presentation.core.components.material.Scaffold
@@ -69,6 +72,17 @@ class AnimeLibraryScreen : Screen() {
                     searchQuery = state.searchQuery,
                     onChangeSearchQuery = screenModel::search,
                     navigateUp = navigator::pop,
+                    actions = {
+                        AppBarActions(
+                            persistentListOf(
+                                AppBar.Action(
+                                    title = "Anime history",
+                                    icon = Icons.Outlined.History,
+                                    onClick = { navigator.push(AnimeHistoryScreen()) },
+                                ),
+                            ),
+                        )
+                    },
                 )
             },
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -85,7 +99,7 @@ class AnimeLibraryScreen : Screen() {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = paddingValues.calculateTopPadding()),
+                            .padding(paddingValues),
                     ) {
                         AnimeLibraryFilters(
                             selected = state.filter,
@@ -93,9 +107,7 @@ class AnimeLibraryScreen : Screen() {
                         )
 
                         LazyColumn(
-                            contentPadding = PaddingValues(
-                                bottom = paddingValues.calculateBottomPadding() + MaterialTheme.padding.medium,
-                            ),
+                            contentPadding = PaddingValues(bottom = MaterialTheme.padding.medium),
                         ) {
                             items(
                                 items = state.items,

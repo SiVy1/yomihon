@@ -1,0 +1,80 @@
+CREATE VIEW animeHistoryView AS
+SELECT
+    animeHistory._id AS id,
+    animes._id AS animeId,
+    animeEpisodes._id AS episodeId,
+    animes.source,
+    animes.url AS animeUrl,
+    animes.title,
+    animes.thumbnail_url AS thumbnailUrl,
+    animeEpisodes.name AS episodeName,
+    animeEpisodes.episode_number AS episodeNumber,
+    animeEpisodes.seen,
+    animeEpisodes.bookmark,
+    animeEpisodes.last_seconds_watched AS lastSecondsWatched,
+    animeEpisodes.total_seconds AS totalSeconds,
+    animeHistory.last_watched AS watchedAt,
+    animeHistory.watch_duration AS watchDuration,
+    max_last_watched.last_watched AS maxWatchedAt,
+    max_last_watched.episode_id AS maxWatchedEpisodeId
+FROM animes
+JOIN animeEpisodes
+ON animes._id = animeEpisodes.anime_id
+JOIN animeHistory
+ON animeEpisodes._id = animeHistory.episode_id
+JOIN (
+    SELECT
+        animeEpisodes.anime_id,
+        animeEpisodes._id AS episode_id,
+        MAX(animeHistory.last_watched) AS last_watched
+    FROM animeEpisodes
+    JOIN animeHistory
+    ON animeEpisodes._id = animeHistory.episode_id
+    GROUP BY animeEpisodes.anime_id
+) AS max_last_watched
+ON animeEpisodes.anime_id = max_last_watched.anime_id;
+
+history:
+SELECT
+id,
+animeId,
+episodeId,
+source,
+animeUrl,
+title,
+thumbnailUrl,
+episodeName,
+episodeNumber,
+seen,
+bookmark,
+lastSecondsWatched,
+totalSeconds,
+watchedAt,
+watchDuration
+FROM animeHistoryView
+WHERE animeHistoryView.watchedAt > 0
+AND maxWatchedEpisodeId = animeHistoryView.episodeId
+AND lower(animeHistoryView.title) LIKE ('%' || :query || '%')
+ORDER BY watchedAt DESC;
+
+getLatestHistory:
+SELECT
+id,
+animeId,
+episodeId,
+source,
+animeUrl,
+title,
+thumbnailUrl,
+episodeName,
+episodeNumber,
+seen,
+bookmark,
+lastSecondsWatched,
+totalSeconds,
+watchedAt,
+watchDuration
+FROM animeHistoryView
+WHERE animeHistoryView.watchedAt > 0
+ORDER BY watchedAt DESC
+LIMIT 1;
