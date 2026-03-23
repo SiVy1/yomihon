@@ -1,5 +1,6 @@
 package tachiyomi.domain.source.service
 
+import eu.kanade.tachiyomi.source.AnimeCatalogueSource
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -13,6 +14,8 @@ interface SourceManager {
 
     val catalogueSources: Flow<List<CatalogueSource>>
 
+    val animeCatalogueSources: Flow<List<AnimeCatalogueSource>>
+
     fun get(sourceKey: Long): Source?
 
     fun getOrStub(sourceKey: Long): Source
@@ -20,6 +23,8 @@ interface SourceManager {
     fun getOnlineSources(): List<HttpSource>
 
     fun getCatalogueSources(): List<CatalogueSource>
+
+    fun getAnimeCatalogueSources(): List<AnimeCatalogueSource>
 
     fun getStubSources(): List<StubSource>
 }

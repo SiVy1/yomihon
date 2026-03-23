@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.source
 import android.content.Context
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.extension.ExtensionManager
+import eu.kanade.tachiyomi.source.AnimeCatalogueSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,6 +44,10 @@ class AndroidSourceManager(
 
     override val catalogueSources: Flow<List<CatalogueSource>> = sourcesMapFlow.map {
         it.values.filterIsInstance<CatalogueSource>()
+    }
+
+    override val animeCatalogueSources: Flow<List<AnimeCatalogueSource>> = sourcesMapFlow.map {
+        it.values.filterIsInstance<AnimeCatalogueSource>()
     }
 
     init {
@@ -93,6 +98,8 @@ class AndroidSourceManager(
     override fun getOnlineSources() = sourcesMapFlow.value.values.filterIsInstance<HttpSource>()
 
     override fun getCatalogueSources() = sourcesMapFlow.value.values.filterIsInstance<CatalogueSource>()
+
+    override fun getAnimeCatalogueSources() = sourcesMapFlow.value.values.filterIsInstance<AnimeCatalogueSource>()
 
     override fun getStubSources(): List<StubSource> {
         val onlineSourceIds = getOnlineSources().map { it.id }
