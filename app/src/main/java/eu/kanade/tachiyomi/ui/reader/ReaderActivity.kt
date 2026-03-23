@@ -265,6 +265,7 @@ class ReaderActivity : BaseActivity() {
                 ReaderPageIndicator(
                     currentPage = state.currentPage,
                     totalPages = state.totalPages,
+                    indicatorText = state.textProgressPercent?.let { "$it%" },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding(),
@@ -607,12 +608,21 @@ class ReaderActivity : BaseActivity() {
 
     private fun ensureViewerForChapters(viewerChapters: ViewerChapters): Viewer? {
         val currentViewer = viewModel.state.value.viewer ?: return null
-        val shouldUseTextViewer = FeatureFlags.textReaderEnabled &&
-            viewerChapters.currChapter.pages?.firstOrNull()?.contentType == eu.kanade.tachiyomi.source.model.Page.ContentType.TEXT
+        val pages = viewerChapters.currChapter.pages.orEmpty()
+        val hasTextPages = pages.any { it.contentType == eu.kanade.tachiyomi.source.model.Page.ContentType.TEXT }
+        val hasImagePages = pages.any { it.contentType != eu.kanade.tachiyomi.source.model.Page.ContentType.TEXT }
+        val shouldUseTextViewer = FeatureFlags.textReaderEnabled && hasTextPages && !hasImagePages
+        val shouldUseContinuousTextScroll = !ReadingMode.isPagerType(viewModel.getMangaReadingMode())
 
         return when {
             shouldUseTextViewer && currentViewer !is TextViewer -> {
-                val viewer = TextViewer(this)
+                val viewer = TextViewer(this, isContinuousScrollMode = shouldUseContinuousTextScroll)
+                swapViewer(viewer)
+                viewer
+            }
+            shouldUseTextViewer && currentViewer is TextViewer &&
+                currentViewer.isContinuousScrollMode != shouldUseContinuousTextScroll -> {
+                val viewer = TextViewer(this, isContinuousScrollMode = shouldUseContinuousTextScroll)
                 swapViewer(viewer)
                 viewer
             }
@@ -698,6 +708,13 @@ class ReaderActivity : BaseActivity() {
      */
     fun onPageSelected(page: ReaderPage) {
         viewModel.onPageSelected(page)
+    }
+
+    /**
+     * Called from the text viewer with chapter-relative scroll progress in [0f, 1f].
+     */
+    fun onTextProgressChanged(chapter: ReaderChapter, progress: Float) {
+        viewModel.onTextProgressChanged(chapter, progress)
     }
 
     /**

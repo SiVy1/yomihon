@@ -61,6 +61,7 @@ import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.source.getNameForMangaInfo
 import eu.kanade.tachiyomi.ui.manga.ChapterList
 import eu.kanade.tachiyomi.ui.manga.MangaScreenModel
+import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.service.missingChaptersCount
@@ -75,7 +76,10 @@ import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.shouldExpandFAB
 import tachiyomi.source.local.isLocal
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import java.time.Instant
+import kotlin.math.roundToInt
 
 @Composable
 fun MangaScreen(
@@ -742,6 +746,9 @@ private fun LazyListScope.sharedChapterItems(
     onChapterSelected: (ChapterList.Item, Boolean, Boolean) -> Unit,
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
 ) {
+    val isLightNovel = manga.genre?.any { it.equals("Light Novel", ignoreCase = true) } == true
+    val readerPreferences = Injekt.get<ReaderPreferences>()
+
     items(
         items = chapters,
         key = { item ->
@@ -759,6 +766,11 @@ private fun LazyListScope.sharedChapterItems(
                 MissingChapterCountListItem(count = item.count)
             }
             is ChapterList.Item -> {
+                val novelProgressPercent = readerPreferences.novelScrollProgress(item.chapter.id)
+                    .get()
+                    .takeIf { it > 0f }
+                    ?.let { (it * 100f).roundToInt().coerceIn(0, 100) }
+
                 MangaChapterListItem(
                     title = if (manga.displayMode == Manga.CHAPTER_DISPLAY_NUMBER) {
                         stringResource(
@@ -772,11 +784,20 @@ private fun LazyListScope.sharedChapterItems(
                     readProgress = item.chapter.lastPageRead
                         .takeIf { !item.chapter.read && it > 0L }
                         ?.let {
-                            stringResource(
-                                MR.strings.chapter_progress,
-                                it + 1,
-                            )
-                        },
+                            novelProgressPercent?.let { percent ->
+                                "$percent%"
+                            } ?: if (isLightNovel) {
+                                "${it.coerceIn(0L, 100L)}%"
+                            } else {
+                                stringResource(
+                                    MR.strings.chapter_progress,
+                                    it + 1,
+                                )
+                            }
+                        }
+                        ?: novelProgressPercent
+                            ?.takeIf { !item.chapter.read }
+                            ?.let { "$it%" },
                     scanlator = item.chapter.scanlator.takeIf { !it.isNullOrBlank() },
                     read = item.chapter.read,
                     bookmark = item.chapter.bookmark,

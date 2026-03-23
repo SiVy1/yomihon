@@ -114,7 +114,7 @@ class RoyalRoadNovelSource : ParsedHttpSource() {
         )
 
         val chapterUrl = link?.attr("abs:href").orEmpty()
-        setUrlWithoutDomain(chapterUrl)
+        chapter.setUrlWithoutDomain(chapterUrl)
         chapter.name = link?.text()?.trim().orEmpty().ifBlank { "Chapter" }
         chapter.chapter_number = parseChapterNumber(chapter.name)
         chapter.date_upload = parseChapterDate(element)
@@ -177,7 +177,7 @@ class RoyalRoadNovelSource : ParsedHttpSource() {
         val url = link?.attr("abs:href").orEmpty()
 
         manga.title = title
-        setUrlWithoutDomain(url)
+        manga.setUrlWithoutDomain(url)
 
         manga.thumbnail_url = element.selectFirstOrNull(
             "img[src]",

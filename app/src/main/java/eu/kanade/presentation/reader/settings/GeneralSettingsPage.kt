@@ -14,6 +14,8 @@ import eu.kanade.tachiyomi.ui.reader.viewer.text.TextViewer
 import eu.kanade.tachiyomi.util.system.hasDisplayCutout
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.CheckboxItem
+import tachiyomi.presentation.core.components.HeadingItem
+import tachiyomi.presentation.core.components.RadioItem
 import tachiyomi.presentation.core.components.SettingsChipRow
 import tachiyomi.presentation.core.components.SliderItem
 import tachiyomi.presentation.core.i18n.pluralStringResource
@@ -31,6 +33,14 @@ private val flashColors = listOf(
     MR.strings.pref_flash_style_black to ReaderPreferences.FlashColor.BLACK,
     MR.strings.pref_flash_style_white to ReaderPreferences.FlashColor.WHITE,
     MR.strings.pref_flash_style_white_black to ReaderPreferences.FlashColor.WHITE_BLACK,
+)
+
+private val novelDisplayModes = listOf(
+    "Follow app theme" to ReaderPreferences.NovelDisplayMode.FOLLOW_APP,
+    "Light" to ReaderPreferences.NovelDisplayMode.LIGHT,
+    "Dark" to ReaderPreferences.NovelDisplayMode.DARK,
+    "Gray" to ReaderPreferences.NovelDisplayMode.GRAY,
+    "Sepia" to ReaderPreferences.NovelDisplayMode.SEPIA,
 )
 
 @Composable
@@ -58,6 +68,9 @@ internal fun ColumnScope.GeneralPage(screenModel: ReaderSettingsScreenModel) {
 
     val novelHorizontalPaddingDpPref = screenModel.preferences.novelHorizontalPaddingDp
     val novelHorizontalPaddingDp by novelHorizontalPaddingDpPref.collectAsState()
+
+    val novelDisplayModePref = screenModel.preferences.novelDisplayMode
+    val novelDisplayMode by novelDisplayModePref.collectAsState()
 
     SettingsChipRow(MR.strings.pref_reader_theme) {
         themes.map { (labelRes, value) ->
@@ -142,6 +155,15 @@ internal fun ColumnScope.GeneralPage(screenModel: ReaderSettingsScreenModel) {
     }
 
     if (viewer is TextViewer) {
+        HeadingItem("Novel display mode")
+        novelDisplayModes.forEach { (label, mode) ->
+            RadioItem(
+                label = label,
+                selected = novelDisplayMode == mode,
+                onClick = { novelDisplayModePref.set(mode) },
+            )
+        }
+
         SliderItem(
             value = novelFontSizeSp,
             valueRange = 14..32,
@@ -173,10 +195,6 @@ internal fun ColumnScope.GeneralPage(screenModel: ReaderSettingsScreenModel) {
             label = "Novel justify text",
             pref = screenModel.preferences.novelJustifyText,
         )
-
-        CheckboxItem(
-            label = "Novel sepia background",
-            pref = screenModel.preferences.novelSepiaBackground,
-        )
     }
+
 }

@@ -10,7 +10,12 @@ open class ReaderPage(
     var stream: (() -> InputStream)? = null,
     contentType: ContentType = ContentType.IMAGE,
     text: String? = null,
-) : Page(index, url, imageUrl, null, contentType, text) {
+) : Page(index, url, imageUrl, null) {
+
+    init {
+        this.contentType = contentType
+        this.text = text
+    }
 
     open lateinit var chapter: ReaderChapter
 }

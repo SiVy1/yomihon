@@ -9,7 +9,7 @@ import tachiyomi.core.common.preference.getEnum
 import tachiyomi.i18n.MR
 
 class ReaderPreferences(
-    preferenceStore: PreferenceStore,
+    private val preferenceStore: PreferenceStore,
 ) {
 
     // region General
@@ -93,9 +93,20 @@ class ReaderPreferences(
 
     val novelHorizontalPaddingDp: Preference<Int> = preferenceStore.getInt("novel_horizontal_padding_dp", 20)
 
+    val novelDisplayMode: Preference<NovelDisplayMode> = preferenceStore.getEnum(
+        "novel_display_mode",
+        NovelDisplayMode.FOLLOW_APP,
+    )
+
     val novelJustifyText: Preference<Boolean> = preferenceStore.getBoolean("novel_justify_text", false)
 
-    val novelSepiaBackground: Preference<Boolean> = preferenceStore.getBoolean("novel_sepia_background", true)
+    fun novelScrollProgress(chapterId: Long): Preference<Float> {
+        return preferenceStore.getFloat("novel_scroll_progress_$chapterId", 0f)
+    }
+
+    fun clearNovelScrollProgress(chapterId: Long) {
+        novelScrollProgress(chapterId).delete()
+    }
 
     // endregion
 
@@ -205,6 +216,14 @@ class ReaderPreferences(
         HIGH(13),
         LOW(31),
         LOWEST(47),
+    }
+
+    enum class NovelDisplayMode {
+        FOLLOW_APP,
+        LIGHT,
+        DARK,
+        GRAY,
+        SEPIA,
     }
 
     companion object {

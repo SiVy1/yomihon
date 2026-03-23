@@ -77,7 +77,17 @@ internal class HttpPageLoader(
         }
         return pages.mapIndexed { index, page ->
             // Don't trust sources and use our own indexing
-            ReaderPage(index, page.url, page.imageUrl)
+            ReaderPage(
+                index = index,
+                url = page.url,
+                imageUrl = page.imageUrl,
+                contentType = page.contentType,
+                text = page.text,
+            ).apply {
+                if (contentType == Page.ContentType.TEXT) {
+                    status = Page.State.Ready
+                }
+            }
         }
     }
 
@@ -85,6 +95,11 @@ internal class HttpPageLoader(
      * Loads a page through the queue. Handles re-enqueueing pages if they were evicted from the cache.
      */
     override suspend fun loadPage(page: ReaderPage) = withIOContext {
+        if (page.contentType == Page.ContentType.TEXT) {
+            page.status = Page.State.Ready
+            return@withIOContext
+        }
+
         val imageUrl = page.imageUrl
 
         // Check if the image has been deleted
@@ -134,7 +149,17 @@ internal class HttpPageLoader(
             launchIO {
                 try {
                     // Convert to pages without reader information
-                    val pagesToSave = pages.map { Page(it.index, it.url, it.imageUrl) }
+                    val pagesToSave = pages.map {
+                        Page(
+                            index = it.index,
+                            url = it.url,
+                            imageUrl = it.imageUrl,
+                            uri = null,
+                        ).apply {
+                            contentType = it.contentType
+                            text = it.text
+                        }
+                    }
                     chapterCache.putPageListToCache(chapter.chapter.toDomainChapter()!!, pagesToSave)
                 } catch (e: Throwable) {
                     if (e is CancellationException) {

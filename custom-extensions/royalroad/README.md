@@ -1,8 +1,8 @@
 # Royal Road extension starter for Yomihon
 
-This folder contains a ready-to-adapt starter for a text-native extension that scrapes Royal Road.
+This folder contains a ready-to-adapt text-native extension that scrapes Royal Road.
 
-It is intentionally kept standalone so it does not affect the main app build.
+It is included as its own Gradle module and can be built independently.
 
 ## What is included
 
@@ -16,14 +16,17 @@ It is intentionally kept standalone so it does not affect the main app build.
 - Selectors on Royal Road can change over time. If the site layout changes, update CSS selectors in `RoyalRoadNovelSource.kt`.
 - Respect Royal Road terms of service and robots/access policies.
 
-## Build integration
+## Build
 
-Use this code in a dedicated extension APK project (the same pattern as Tachiyomi/Mihon extension repos):
+From repository root:
 
-1. Create an Android app module for the extension.
-2. Copy the files from `src/main/kotlin/...` and `AndroidManifest.xml`.
-3. Make sure your extension module depends on the extensions API that matches your app's loader (`extensions-lib 1.5` compatible).
-4. Build and install/sign the extension APK.
+1. `./gradlew :custom-extensions:royalroad:assembleDebug`
+2. Install generated APK from module outputs.
+
+The module compiles against local projects:
+
+- `:source-api`
+- `:core:common`
 
 ## Package/class metadata
 

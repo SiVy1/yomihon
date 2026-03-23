@@ -13,9 +13,17 @@ open class Page(
     val url: String = "",
     var imageUrl: String? = null,
     @Transient var uri: Uri? = null, // Deprecated but can't be deleted due to extensions
-    val contentType: ContentType = ContentType.IMAGE,
-    val text: String? = null,
 ) : ProgressListener {
+
+    /**
+     * Kept outside the constructor to preserve the old JVM constructor ABI used by extensions.
+     */
+    var contentType: ContentType = ContentType.IMAGE
+
+    /**
+     * Optional text payload for text-first readers.
+     */
+    var text: String? = null
 
     val number: Int
         get() = index + 1
@@ -73,6 +81,9 @@ class TextPage(
     url = url,
     imageUrl = null,
     uri = null,
-    contentType = ContentType.TEXT,
-    text = text,
-)
+) {
+    init {
+        contentType = ContentType.TEXT
+        this.text = text
+    }
+}

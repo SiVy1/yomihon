@@ -63,12 +63,66 @@ object SettingsReaderScreen : SearchableSettings {
                 title = stringResource(MR.strings.pref_page_transitions),
             ),
             getDisplayGroup(readerPreferences = readerPref),
+            getLightNovelGroup(readerPreferences = readerPref),
             getEInkGroup(readerPreferences = readerPref),
             getReadingGroup(readerPreferences = readerPref),
             getPagedGroup(readerPreferences = readerPref),
             getWebtoonGroup(readerPreferences = readerPref),
             getNavigationGroup(readerPreferences = readerPref),
             getActionsGroup(readerPreferences = readerPref),
+        )
+    }
+
+    @Composable
+    private fun getLightNovelGroup(readerPreferences: ReaderPreferences): Preference.PreferenceGroup {
+        val novelFontSizePref = readerPreferences.novelFontSizeSp
+        val novelLineSpacingPref = readerPreferences.novelLineSpacingPercent
+        val novelHorizontalPaddingPref = readerPreferences.novelHorizontalPaddingDp
+
+        val novelFontSize by novelFontSizePref.collectAsState()
+        val novelLineSpacing by novelLineSpacingPref.collectAsState()
+        val novelHorizontalPadding by novelHorizontalPaddingPref.collectAsState()
+
+        return Preference.PreferenceGroup(
+            title = "Light novels",
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.ListPreference(
+                    preference = readerPreferences.novelDisplayMode,
+                    entries = persistentMapOf(
+                        ReaderPreferences.NovelDisplayMode.FOLLOW_APP to "Follow app theme",
+                        ReaderPreferences.NovelDisplayMode.LIGHT to "Light",
+                        ReaderPreferences.NovelDisplayMode.DARK to "Dark",
+                        ReaderPreferences.NovelDisplayMode.GRAY to "Gray",
+                        ReaderPreferences.NovelDisplayMode.SEPIA to "Sepia",
+                    ),
+                    title = "Novel display mode",
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = novelFontSize,
+                    valueRange = 14..32,
+                    title = "Novel font size",
+                    valueString = "$novelFontSize sp",
+                    onValueChanged = novelFontSizePref::set,
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = novelLineSpacing,
+                    valueRange = 110..220,
+                    title = "Novel line spacing",
+                    valueString = "$novelLineSpacing%",
+                    onValueChanged = novelLineSpacingPref::set,
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = novelHorizontalPadding,
+                    valueRange = 8..36,
+                    title = "Novel side margin",
+                    valueString = "$novelHorizontalPadding dp",
+                    onValueChanged = novelHorizontalPaddingPref::set,
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPreferences.novelJustifyText,
+                    title = "Novel justify text",
+                ),
+            ),
         )
     }
 

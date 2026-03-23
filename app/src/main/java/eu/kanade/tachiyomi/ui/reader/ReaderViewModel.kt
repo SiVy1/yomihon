@@ -445,6 +445,20 @@ class ReaderViewModel @JvmOverloads constructor(
         val selectedChapter = page.chapter
         val pages = selectedChapter.pages ?: return
 
+        if (page.contentType == Page.ContentType.TEXT) {
+            val denominator = pages.lastIndex.coerceAtLeast(1)
+            val textPercent = ((page.index.toFloat() / denominator.toFloat()) * 100f)
+                .toInt()
+                .coerceIn(0, 100)
+            mutableState.update {
+                if (it.textProgressPercent == textPercent) it else it.copy(textProgressPercent = textPercent)
+            }
+        } else {
+            mutableState.update {
+                it.copy(textProgressPercent = null)
+            }
+        }
+
         // Save last page read and mark as read if needed
         viewModelScope.launchNonCancellable {
             updateChapterProgress(selectedChapter, page)
@@ -461,6 +475,45 @@ class ReaderViewModel @JvmOverloads constructor(
         }
 
         eventChannel.trySend(Event.PageChanged)
+    }
+
+    fun onTextProgressChanged(chapter: ReaderChapter, progress: Float) {
+        val chapterId = chapter.chapter.id ?: return
+        val clampedProgress = progress.coerceIn(0f, 1f)
+        val progressPercent = (clampedProgress * 100f).toInt().coerceIn(0, 100)
+
+        mutableState.update {
+            if (it.textProgressPercent == progressPercent) it else it.copy(textProgressPercent = progressPercent)
+        }
+
+        viewModelScope.launchNonCancellable {
+            readerPreferences.novelScrollProgress(chapterId).set(clampedProgress)
+
+            if (incognitoMode) {
+                return@launchNonCancellable
+            }
+
+            val wasRead = chapter.chapter.read
+            val shouldMarkRead = progressPercent >= 98
+            val shouldPersistProgress = chapter.chapter.last_page_read != progressPercent
+
+            if (shouldMarkRead && !wasRead) {
+                chapter.chapter.read = true
+                updateTrackChapterRead(chapter)
+                deleteChapterIfNeeded(chapter)
+            }
+
+            if (shouldPersistProgress || (shouldMarkRead && !wasRead)) {
+                chapter.chapter.last_page_read = progressPercent
+                updateChapter.await(
+                    ChapterUpdate(
+                        id = chapterId,
+                        read = chapter.chapter.read,
+                        lastPageRead = progressPercent.toLong(),
+                    ),
+                )
+            }
+        }
     }
 
     private fun downloadNextChapters() {
@@ -951,6 +1004,7 @@ class ReaderViewModel @JvmOverloads constructor(
         val bookmarked: Boolean = false,
         val isLoadingAdjacentChapter: Boolean = false,
         val currentPage: Int = -1,
+        val textProgressPercent: Int? = null,
 
         /**
          * Viewer used to display the pages (pager, webtoon, ...).
