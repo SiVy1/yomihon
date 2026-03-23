@@ -13,9 +13,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.CopyAll
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -54,7 +51,6 @@ import eu.kanade.tachiyomi.source.model.TorrentDescriptor
 import eu.kanade.tachiyomi.ui.anime.player.AnimePlaybackRequest
 import eu.kanade.tachiyomi.ui.anime.player.AnimePlayerActivity
 import eu.kanade.tachiyomi.util.system.copyToClipboard
-import eu.kanade.tachiyomi.util.system.openInBrowser
 import tachiyomi.domain.anime.model.Anime
 import tachiyomi.domain.anime.model.Episode
 import tachiyomi.presentation.core.components.material.Scaffold
@@ -144,8 +140,7 @@ data class AnimeDetailsScreen(
                 TorrentOptionsDialog(
                     episode = dialog.episode,
                     descriptors = dialog.descriptors,
-                    onLaunchDescriptor = { screenModel.onEpisodeLaunched(dialog.episode) },
-                    onPlayInApp = { descriptor ->
+                    onSelectDescriptor = { descriptor ->
                         val localEpisode = state.localEpisodes[dialog.episode.url] ?: return@TorrentOptionsDialog
                         screenModel.onEpisodeLaunched(dialog.episode)
                         context.startActivity(
@@ -340,12 +335,9 @@ private fun EpisodeItem(
 private fun TorrentOptionsDialog(
     episode: SEpisode,
     descriptors: List<TorrentDescriptor>,
-    onLaunchDescriptor: () -> Unit,
-    onPlayInApp: (TorrentDescriptor) -> Unit,
+    onSelectDescriptor: (TorrentDescriptor) -> Unit,
     onDismissRequest: () -> Unit,
 ) {
-    val context = LocalContext.current
-
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = {
@@ -361,12 +353,8 @@ private fun TorrentOptionsDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    onLaunchDescriptor()
-                                    val opened = descriptor.magnetUri?.let(context::openInBrowser)
-                                        ?: descriptor.torrentUrl?.let(context::openInBrowser)
-                                    if (opened != null) {
-                                        onDismissRequest()
-                                    }
+                                    onSelectDescriptor(descriptor)
+                                    onDismissRequest()
                                 }
                                 .padding(vertical = MaterialTheme.padding.small),
                         ) {
@@ -392,37 +380,11 @@ private fun TorrentOptionsDialog(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                            ) {
-                                IconButton(onClick = { onPlayInApp(descriptor) }) {
-                                    Icon(Icons.Outlined.PlayCircle, contentDescription = "Play in app")
-                                }
-                                descriptor.magnetUri?.let { magnet ->
-                                    IconButton(onClick = { context.copyToClipboard("Magnet", magnet) }) {
-                                        Icon(Icons.Outlined.CopyAll, contentDescription = "Copy magnet")
-                                    }
-                                }
-                                descriptor.magnetUri?.let { magnet ->
-                                    IconButton(onClick = {
-                                        onLaunchDescriptor()
-                                        context.openInBrowser(magnet)
-                                        onDismissRequest()
-                                    }) {
-                                        Icon(Icons.Outlined.Link, contentDescription = "Open magnet")
-                                    }
-                                }
-                                descriptor.torrentUrl?.let { torrentUrl ->
-                                    IconButton(onClick = {
-                                        onLaunchDescriptor()
-                                        context.openInBrowser(torrentUrl)
-                                        onDismissRequest()
-                                    }) {
-                                        Icon(Icons.Outlined.Download, contentDescription = "Open torrent")
-                                    }
-                                }
-                            }
+                            Text(
+                                text = "Tap to play in app",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         }
                     }
                 }
