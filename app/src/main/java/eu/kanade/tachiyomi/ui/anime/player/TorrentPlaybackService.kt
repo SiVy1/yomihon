@@ -26,7 +26,11 @@ class TorrentPlaybackService : Service() {
 
     private val binder = LocalBinder()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val backend: TorrentPlaybackBackend = NoopTorrentPlaybackBackend()
+    private val backend: TorrentPlaybackBackend by lazy {
+        NoopTorrentPlaybackBackend(
+            engine = TorrentEngineFactory(this).create(),
+        )
+    }
     private var currentRequest: AnimePlaybackRequest? = null
 
     private val _snapshot = MutableStateFlow(
