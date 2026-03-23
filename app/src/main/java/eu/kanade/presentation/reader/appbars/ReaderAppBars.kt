@@ -56,6 +56,7 @@ fun ReaderAppBars(
     currentPage: Int,
     totalPages: Int,
     onPageIndexChange: (Int) -> Unit,
+    textProgressPercent: Int? = null,
 
     readingMode: ReadingMode,
     onClickReadingMode: () -> Unit,
@@ -112,6 +113,7 @@ fun ReaderAppBars(
                     currentPage = currentPage,
                     totalPages = totalPages,
                     onPageIndexChange = onPageIndexChange,
+                    textProgressPercent = textProgressPercent,
                 )
                 ReaderBottomBar(
                     modifier = Modifier

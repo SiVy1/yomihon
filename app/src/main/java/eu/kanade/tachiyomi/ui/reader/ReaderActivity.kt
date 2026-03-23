@@ -486,6 +486,7 @@ class ReaderActivity : BaseActivity() {
                 isScrollingThroughPages = true
                 moveToPageIndex(it)
             },
+            textProgressPercent = state.textProgressPercent,
 
             readingMode = ReadingMode.fromPreference(
                 viewModel.getMangaReadingMode(resolveDefault = false),

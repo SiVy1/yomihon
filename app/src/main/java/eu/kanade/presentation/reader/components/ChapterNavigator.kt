@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.SkipPrevious
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -52,6 +53,7 @@ fun ChapterNavigator(
     currentPage: Int,
     totalPages: Int,
     onPageIndexChange: (Int) -> Unit,
+    textProgressPercent: Int? = null,
 ) {
     val isTabletUi = isTabletUi()
     val horizontalPadding = if (isTabletUi) 24.dp else 8.dp
@@ -88,7 +90,27 @@ fun ChapterNavigator(
                 )
             }
 
-            if (totalPages > 1) {
+            if (textProgressPercent != null) {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(backgroundColor)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "$textProgressPercent%",
+                        modifier = Modifier.weight(1f),
+                    )
+
+                    if (enabledNext && textProgressPercent >= TEXT_CHAPTER_SHORTCUT_THRESHOLD) {
+                        FilledTonalButton(onClick = onNextChapter) {
+                            Text(text = stringResource(MR.strings.action_next_chapter))
+                        }
+                    }
+                }
+            } else if (totalPages > 1) {
                 CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
                     Row(
                         modifier = Modifier
@@ -164,3 +186,5 @@ private fun ChapterNavigatorPreview() {
         )
     }
 }
+
+private const val TEXT_CHAPTER_SHORTCUT_THRESHOLD = 95
