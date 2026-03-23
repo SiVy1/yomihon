@@ -2,6 +2,7 @@ package tachiyomi.data.anime
 
 import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.domain.anime.model.Anime
+import tachiyomi.domain.anime.model.LibraryAnime
 
 object AnimeMapper {
     fun mapAnime(
@@ -40,5 +41,57 @@ object AnimeMapper {
         favoriteModifiedAt = favoriteModifiedAt,
         version = version,
         aniListId = aniListId,
+    )
+
+    fun mapLibraryAnime(
+        animeId: Long,
+        source: Long,
+        url: String,
+        artist: String?,
+        author: String?,
+        description: String?,
+        genre: String?,
+        title: String,
+        status: Long,
+        thumbnailUrl: String?,
+        favorite: Boolean,
+        initialized: Boolean,
+        dateAdded: Long,
+        lastModifiedAt: Long,
+        favoriteModifiedAt: Long?,
+        version: Long,
+        aniListId: Long?,
+        totalCount: Long,
+        seenCount: Double,
+        bookmarkCount: Double,
+        latestUpload: Long,
+        episodeFetchedAt: Long,
+        lastWatched: Long,
+    ): LibraryAnime = LibraryAnime(
+        anime = mapAnime(
+            id = animeId,
+            source = source,
+            url = url,
+            artist = artist,
+            author = author,
+            description = description,
+            genre = genre,
+            title = title,
+            status = status,
+            thumbnailUrl = thumbnailUrl,
+            favorite = favorite,
+            initialized = initialized,
+            dateAdded = dateAdded,
+            lastModifiedAt = lastModifiedAt,
+            favoriteModifiedAt = favoriteModifiedAt,
+            version = version,
+            aniListId = aniListId,
+        ),
+        totalEpisodes = totalCount,
+        seenCount = seenCount.toLong(),
+        bookmarkCount = bookmarkCount.toLong(),
+        latestUpload = latestUpload,
+        episodeFetchedAt = episodeFetchedAt,
+        lastWatched = lastWatched,
     )
 }

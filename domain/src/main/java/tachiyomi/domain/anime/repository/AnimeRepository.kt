@@ -2,6 +2,7 @@ package tachiyomi.domain.anime.repository
 
 import kotlinx.coroutines.flow.Flow
 import tachiyomi.domain.anime.model.Anime
+import tachiyomi.domain.anime.model.LibraryAnime
 import tachiyomi.domain.anime.model.AnimeUpdate
 
 interface AnimeRepository {
@@ -13,6 +14,10 @@ interface AnimeRepository {
     suspend fun getAnimeByUrlAndSourceId(url: String, sourceId: Long): Anime?
 
     fun getAnimeByUrlAndSourceIdAsFlow(url: String, sourceId: Long): Flow<Anime?>
+
+    suspend fun getLibraryAnime(): List<LibraryAnime>
+
+    fun getLibraryAnimeAsFlow(): Flow<List<LibraryAnime>>
 
     suspend fun update(update: AnimeUpdate): Boolean
 

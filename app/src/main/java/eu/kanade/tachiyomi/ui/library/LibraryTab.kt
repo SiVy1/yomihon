@@ -39,6 +39,7 @@ import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
+import eu.kanade.tachiyomi.ui.anime.library.AnimeLibraryScreen
 import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.main.MainActivity
@@ -137,6 +138,7 @@ data object LibraryTab : Tab {
                             }
                         }
                     },
+                    onClickOpenAnimeLibrary = { navigator.push(AnimeLibraryScreen()) },
                     onCycleNovelFilter = {
                         val nextMode = state.searchQuery.toNovelFilterMode().next()
                         screenModel.search(state.searchQuery.withNovelFilter(nextMode))

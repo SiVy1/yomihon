@@ -1,0 +1,46 @@
+CREATE VIEW animeLibraryView AS
+SELECT
+    animes._id AS animeId,
+    animes.source,
+    animes.url,
+    animes.artist,
+    animes.author,
+    animes.description,
+    animes.genre,
+    animes.title,
+    animes.status,
+    animes.thumbnail_url AS thumbnailUrl,
+    animes.favorite,
+    animes.initialized,
+    animes.date_added AS dateAdded,
+    animes.last_modified_at AS lastModifiedAt,
+    animes.favorite_modified_at AS favoriteModifiedAt,
+    animes.version,
+    animes.anilist_id AS aniListId,
+    coalesce(animeEpisodeStats.totalCount, 0) AS totalCount,
+    coalesce(animeEpisodeStats.seenCount, 0) AS seenCount,
+    coalesce(animeEpisodeStats.bookmarkCount, 0) AS bookmarkCount,
+    coalesce(animeEpisodeStats.latestUpload, 0) AS latestUpload,
+    coalesce(animeEpisodeStats.episodeFetchedAt, 0) AS episodeFetchedAt,
+    coalesce(animeEpisodeStats.lastWatched, 0) AS lastWatched
+FROM animes
+LEFT JOIN (
+    SELECT
+        animeEpisodes.anime_id,
+        count(*) AS totalCount,
+        sum(animeEpisodes.seen) AS seenCount,
+        sum(animeEpisodes.bookmark) AS bookmarkCount,
+        coalesce(max(animeEpisodes.date_upload), 0) AS latestUpload,
+        coalesce(max(animeEpisodes.date_fetch), 0) AS episodeFetchedAt,
+        coalesce(max(animeHistory.last_watched), 0) AS lastWatched
+    FROM animeEpisodes
+    LEFT JOIN animeHistory
+    ON animeEpisodes._id = animeHistory.episode_id
+    GROUP BY animeEpisodes.anime_id
+) AS animeEpisodeStats
+ON animes._id = animeEpisodeStats.anime_id
+WHERE animes.favorite = 1;
+
+library:
+SELECT *
+FROM animeLibraryView;

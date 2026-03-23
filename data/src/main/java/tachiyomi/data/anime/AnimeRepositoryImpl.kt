@@ -7,6 +7,7 @@ import tachiyomi.data.DatabaseHandler
 import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.domain.anime.model.Anime
 import tachiyomi.domain.anime.model.AnimeUpdate
+import tachiyomi.domain.anime.model.LibraryAnime
 import tachiyomi.domain.anime.repository.AnimeRepository
 
 class AnimeRepositoryImpl(
@@ -38,6 +39,18 @@ class AnimeRepositoryImpl(
                 source = sourceId,
                 mapper = AnimeMapper::mapAnime,
             )
+        }
+    }
+
+    override suspend fun getLibraryAnime(): List<LibraryAnime> {
+        return handler.awaitList {
+            animeLibraryViewQueries.library(AnimeMapper::mapLibraryAnime)
+        }
+    }
+
+    override fun getLibraryAnimeAsFlow(): Flow<List<LibraryAnime>> {
+        return handler.subscribeToList {
+            animeLibraryViewQueries.library(AnimeMapper::mapLibraryAnime)
         }
     }
 

@@ -7,6 +7,7 @@ import tachiyomi.data.anime.AnimeRepositoryImpl
 import tachiyomi.data.anime.EpisodeRepositoryImpl
 import tachiyomi.domain.anime.interactor.GetAnimeByUrlAndSourceId
 import tachiyomi.domain.anime.interactor.GetEpisodesByAnimeId
+import tachiyomi.domain.anime.interactor.GetLibraryAnime
 import tachiyomi.domain.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.anime.interactor.UpdateAnime
 import tachiyomi.domain.anime.interactor.UpsertAnimeHistory
@@ -121,6 +122,7 @@ class DomainModule : InjektModule {
         addSingletonFactory<AnimeHistoryRepository> { AnimeHistoryRepositoryImpl(get()) }
         addFactory { GetAnimeByUrlAndSourceId(get()) }
         addFactory { GetEpisodesByAnimeId(get()) }
+        addFactory { GetLibraryAnime(get()) }
         addFactory { NetworkToLocalAnime(get()) }
         addFactory { UpdateAnime(get()) }
         addFactory { UpsertAnimeHistory(get()) }
