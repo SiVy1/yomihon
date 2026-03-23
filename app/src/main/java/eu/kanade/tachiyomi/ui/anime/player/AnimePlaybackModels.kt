@@ -34,6 +34,12 @@ data class SubtitleTrack(
     val language: String? = null,
 ) : Serializable
 
+data class TorrentDiscoveredFile(
+    val id: String,
+    val path: String,
+    val sizeBytes: Long? = null,
+) : Serializable
+
 data class TorrentPlaybackSnapshot(
     val phase: TorrentPlaybackPhase = TorrentPlaybackPhase.Idle,
     val availableVideoFiles: List<TorrentPlayableFile> = emptyList(),
@@ -43,6 +49,13 @@ data class TorrentPlaybackSnapshot(
     val proxyUrl: String? = null,
     val statusMessage: String? = null,
     val errorMessage: String? = null,
+)
+
+data class TorrentPlaybackSession(
+    val sessionId: String,
+    val request: AnimePlaybackRequest,
+    val discoveredFiles: List<TorrentDiscoveredFile> = emptyList(),
+    val snapshot: TorrentPlaybackSnapshot = TorrentPlaybackSnapshot(),
 )
 
 data class AnimePlayerState(
