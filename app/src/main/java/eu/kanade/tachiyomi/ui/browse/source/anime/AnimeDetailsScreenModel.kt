@@ -18,6 +18,10 @@ import tachiyomi.domain.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.anime.interactor.UpdateAnime
 import tachiyomi.domain.anime.model.Anime
 import tachiyomi.domain.anime.model.AnimeUpdate
+import tachiyomi.domain.anime.model.AnimeHistoryUpdate
+import tachiyomi.domain.anime.model.Episode
+import tachiyomi.domain.anime.model.EpisodeUpdate
+import tachiyomi.domain.anime.interactor.UpsertAnimeHistory
 import tachiyomi.domain.anime.repository.EpisodeRepository
 import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
@@ -30,6 +34,7 @@ class AnimeDetailsScreenModel(
     private val getAnimeByUrlAndSourceId: GetAnimeByUrlAndSourceId = Injekt.get(),
     private val networkToLocalAnime: NetworkToLocalAnime = Injekt.get(),
     private val updateAnime: UpdateAnime = Injekt.get(),
+    private val upsertAnimeHistory: UpsertAnimeHistory = Injekt.get(),
     private val episodeRepository: EpisodeRepository = Injekt.get(),
 ) : StateScreenModel<AnimeDetailsScreenModel.State>(
     State(
@@ -39,10 +44,12 @@ class AnimeDetailsScreenModel(
 ) {
 
     val source = sourceManager.getOrStub(sourceId)
+    private var subscribedEpisodeAnimeId: Long? = null
 
     init {
         screenModelScope.launchIO {
             getAnimeByUrlAndSourceId.subscribe(initialAnime.url, sourceId).collectLatest { localAnime ->
+                subscribeToLocalEpisodes(localAnime)
                 mutableState.update { it.copy(localAnime = localAnime) }
             }
         }
@@ -94,6 +101,22 @@ class AnimeDetailsScreenModel(
         }
     }
 
+    private fun subscribeToLocalEpisodes(localAnime: Anime?) {
+        val animeId = localAnime?.id ?: return
+        if (subscribedEpisodeAnimeId == animeId) return
+        subscribedEpisodeAnimeId = animeId
+
+        screenModelScope.launchIO {
+            episodeRepository.getEpisodesByAnimeIdAsFlow(animeId).collectLatest { episodes ->
+                mutableState.update {
+                    it.copy(
+                        localEpisodes = episodes.associateBy(Episode::url),
+                    )
+                }
+            }
+        }
+    }
+
     fun toggleLibrary() {
         val localAnime = state.value.localAnime ?: return
         val shouldFavorite = !localAnime.favorite
@@ -115,6 +138,43 @@ class AnimeDetailsScreenModel(
                     it.copy(errorMessage = "Failed to update library state.")
                 }
             }
+        }
+    }
+
+    fun toggleSeen(episode: SEpisode) {
+        val localEpisode = state.value.localEpisodes[episode.url] ?: return
+        val seen = !localEpisode.seen
+
+        screenModelScope.launchIO {
+            episodeRepository.update(
+                EpisodeUpdate(
+                    id = localEpisode.id,
+                    seen = seen,
+                    lastSecondsWatched = if (seen) localEpisode.totalSeconds else 0L,
+                ),
+            )
+            if (seen) {
+                upsertAnimeHistory.await(
+                    AnimeHistoryUpdate(
+                        episodeId = localEpisode.id,
+                        watchedAt = System.currentTimeMillis(),
+                        sessionWatchDuration = 0L,
+                    ),
+                )
+            }
+        }
+    }
+
+    fun toggleBookmark(episode: SEpisode) {
+        val localEpisode = state.value.localEpisodes[episode.url] ?: return
+
+        screenModelScope.launchIO {
+            episodeRepository.update(
+                EpisodeUpdate(
+                    id = localEpisode.id,
+                    bookmark = !localEpisode.bookmark,
+                ),
+            )
         }
     }
 
@@ -143,6 +203,20 @@ class AnimeDetailsScreenModel(
         }
     }
 
+    fun onEpisodeLaunched(episode: SEpisode) {
+        val localEpisode = state.value.localEpisodes[episode.url] ?: return
+
+        screenModelScope.launchIO {
+            upsertAnimeHistory.await(
+                AnimeHistoryUpdate(
+                    episodeId = localEpisode.id,
+                    watchedAt = System.currentTimeMillis(),
+                    sessionWatchDuration = 0L,
+                ),
+            )
+        }
+    }
+
     fun setDialog(dialog: Dialog?) {
         mutableState.update { it.copy(dialog = dialog) }
     }
@@ -160,6 +234,7 @@ class AnimeDetailsScreenModel(
         val episodes: List<SEpisode> = emptyList(),
         val isLoading: Boolean,
         val localAnime: Anime? = null,
+        val localEpisodes: Map<String, Episode> = emptyMap(),
         val resolvingEpisodeUrl: String? = null,
         val errorMessage: String? = null,
         val dialog: Dialog? = null,

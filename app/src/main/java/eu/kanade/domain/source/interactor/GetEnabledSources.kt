@@ -16,24 +16,35 @@ class GetEnabledSources(
 ) {
 
     fun subscribe(): Flow<List<Source>> {
+        val allSources = combine(
+            repository.getSources(),
+            repository.getAnimeSources(),
+        ) { mangaSources: List<Source>, animeSources: List<Source> ->
+            mangaSources + animeSources
+        }
+
         return combine(
             preferences.pinnedSources.changes(),
             preferences.enabledLanguages.changes(),
             preferences.disabledSources.changes(),
             preferences.lastUsedSource.changes(),
-            repository.getSources(),
-            repository.getAnimeSources(),
-        ) { pinnedSourceIds, enabledLanguages, disabledSources, lastUsedSource, mangaSources, animeSources ->
-            (mangaSources + animeSources)
-                .filter { it.lang in enabledLanguages || it.isLocal() }
-                .filterNot { it.id.toString() in disabledSources }
-                .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
-                .flatMap {
-                    val flag = if ("${it.id}" in pinnedSourceIds) Pins.pinned else Pins.unpinned
-                    val source = it.copy(pin = flag)
-                    val toFlatten = mutableListOf(source)
-                    if (source.id == lastUsedSource) {
-                        toFlatten.add(source.copy(isUsedLast = true, pin = source.pin - Pin.Actual))
+            allSources,
+        ) { pinnedSourceIds, enabledLanguages, disabledSources, lastUsedSource, sources ->
+            sources
+                .filter { source -> source.lang in enabledLanguages || source.isLocal() }
+                .filterNot { source -> source.id.toString() in disabledSources }
+                .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { source -> source.name })
+                .flatMap { source ->
+                    val flag = if (source.id.toString() in pinnedSourceIds) Pins.pinned else Pins.unpinned
+                    val pinnedSource = source.copy(pin = flag)
+                    val toFlatten = mutableListOf(pinnedSource)
+                    if (pinnedSource.id == lastUsedSource) {
+                        toFlatten.add(
+                            pinnedSource.copy(
+                                isUsedLast = true,
+                                pin = pinnedSource.pin - Pin.Actual,
+                            ),
+                        )
                     }
                     toFlatten
                 }

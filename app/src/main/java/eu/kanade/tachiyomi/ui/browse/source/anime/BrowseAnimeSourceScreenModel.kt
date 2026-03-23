@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.browse.source.anime
 import androidx.compose.runtime.Immutable
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import androidx.paging.cachedIn
@@ -15,7 +16,7 @@ import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.SAnime
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -51,15 +52,17 @@ class BrowseAnimeSourceScreenModel(
         }
     }
 
-    val animePagerFlowFlow = state.map { it.listing }
+    val animePagerFlow = state.map { it.listing }
         .distinctUntilChanged()
-        .map { listing ->
-            val animeSource = source as? AnimeCatalogueSource ?: return@map emptyFlow()
+        .flatMapLatest { listing ->
+            val animeSource = source as? AnimeCatalogueSource ?: return@flatMapLatest kotlinx.coroutines.flow.flowOf(
+                PagingData.empty(),
+            )
             Pager(PagingConfig(pageSize = 24)) {
                 AnimeBrowsePagingSource(animeSource, listing)
             }.flow.cachedIn(ioCoroutineScope)
         }
-        .stateIn(ioCoroutineScope, SharingStarted.Lazily, emptyFlow())
+        .stateIn(ioCoroutineScope, SharingStarted.Lazily, PagingData.empty())
 
     fun resetFilters() {
         val animeSource = source as? AnimeCatalogueSource ?: return

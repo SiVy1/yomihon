@@ -11,10 +11,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Bookmark
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.CopyAll
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -50,10 +54,12 @@ import eu.kanade.tachiyomi.source.model.TorrentDescriptor
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import tachiyomi.domain.anime.model.Anime
+import tachiyomi.domain.anime.model.Episode
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
+import tachiyomi.presentation.core.util.plus
 
 data class AnimeDetailsScreen(
     val sourceId: Long,
@@ -118,8 +124,11 @@ data class AnimeDetailsScreen(
                         ) { episode ->
                             EpisodeItem(
                                 episode = episode,
+                                localEpisode = state.localEpisodes[episode.url],
                                 isResolving = state.resolvingEpisodeUrl == episode.url,
                                 onClick = { screenModel.selectEpisode(episode) },
+                                onToggleSeen = { screenModel.toggleSeen(episode) },
+                                onToggleBookmark = { screenModel.toggleBookmark(episode) },
                             )
                         }
                     }
@@ -132,6 +141,7 @@ data class AnimeDetailsScreen(
                 TorrentOptionsDialog(
                     episode = dialog.episode,
                     descriptors = dialog.descriptors,
+                    onLaunchDescriptor = { screenModel.onEpisodeLaunched(dialog.episode) },
                     onDismissRequest = { screenModel.setDialog(null) },
                 )
             }
@@ -204,8 +214,11 @@ private fun AnimeHeader(
 @Composable
 private fun EpisodeItem(
     episode: SEpisode,
+    localEpisode: Episode?,
     isResolving: Boolean,
     onClick: () -> Unit,
+    onToggleSeen: () -> Unit,
+    onToggleBookmark: () -> Unit,
 ) {
     val relativeDate = if (episode.date_upload > 0L) {
         relativeTimeSpanString(episode.date_upload)
@@ -217,6 +230,10 @@ private fun EpisodeItem(
         if (episode.episode_number >= 0f) add("Ep ${episode.episode_number}")
         episode.release_group?.let(::add)
         relativeDate?.let(::add)
+        val watchedSeconds = localEpisode?.lastSecondsWatched ?: 0L
+        if (watchedSeconds > 0L && localEpisode?.seen != true) {
+            add("Resume ${watchedSeconds}s")
+        }
     }.joinToString(" - ")
 
     Column(
@@ -241,6 +258,44 @@ private fun EpisodeItem(
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f),
             )
+            IconButton(onClick = onToggleSeen) {
+                Icon(
+                    imageVector = if (localEpisode?.seen == true) {
+                        Icons.Outlined.Visibility
+                    } else {
+                        Icons.Outlined.VisibilityOff
+                    },
+                    contentDescription = if (localEpisode?.seen == true) {
+                        "Mark unseen"
+                    } else {
+                        "Mark seen"
+                    },
+                    tint = if (localEpisode?.seen == true) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+            IconButton(onClick = onToggleBookmark) {
+                Icon(
+                    imageVector = if (localEpisode?.bookmark == true) {
+                        Icons.Outlined.Bookmark
+                    } else {
+                        Icons.Outlined.BookmarkBorder
+                    },
+                    contentDescription = if (localEpisode?.bookmark == true) {
+                        "Remove bookmark"
+                    } else {
+                        "Bookmark episode"
+                    },
+                    tint = if (localEpisode?.bookmark == true) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
             if (isResolving) {
                 Text(
                     text = "Resolving...",
@@ -264,6 +319,7 @@ private fun EpisodeItem(
 private fun TorrentOptionsDialog(
     episode: SEpisode,
     descriptors: List<TorrentDescriptor>,
+    onLaunchDescriptor: () -> Unit,
     onDismissRequest: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -283,8 +339,12 @@ private fun TorrentOptionsDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    descriptor.magnetUri?.let(context::openInBrowser)
+                                    onLaunchDescriptor()
+                                    val opened = descriptor.magnetUri?.let(context::openInBrowser)
                                         ?: descriptor.torrentUrl?.let(context::openInBrowser)
+                                    if (opened != null) {
+                                        onDismissRequest()
+                                    }
                                 }
                                 .padding(vertical = MaterialTheme.padding.small),
                         ) {
@@ -320,12 +380,20 @@ private fun TorrentOptionsDialog(
                                     }
                                 }
                                 descriptor.magnetUri?.let { magnet ->
-                                    IconButton(onClick = { context.openInBrowser(magnet) }) {
+                                    IconButton(onClick = {
+                                        onLaunchDescriptor()
+                                        context.openInBrowser(magnet)
+                                        onDismissRequest()
+                                    }) {
                                         Icon(Icons.Outlined.Link, contentDescription = "Open magnet")
                                     }
                                 }
                                 descriptor.torrentUrl?.let { torrentUrl ->
-                                    IconButton(onClick = { context.openInBrowser(torrentUrl) }) {
+                                    IconButton(onClick = {
+                                        onLaunchDescriptor()
+                                        context.openInBrowser(torrentUrl)
+                                        onDismissRequest()
+                                    }) {
                                         Icon(Icons.Outlined.Download, contentDescription = "Open torrent")
                                     }
                                 }

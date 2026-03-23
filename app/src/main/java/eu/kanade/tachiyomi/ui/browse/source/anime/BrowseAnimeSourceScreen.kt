@@ -83,7 +83,7 @@ data class BrowseAnimeSourceScreen(
 
         val screenModel = rememberScreenModel { BrowseAnimeSourceScreenModel(sourceId, listingQuery) }
         val state by screenModel.state.collectAsState()
-        val animeList = screenModel.animePagerFlowFlow.collectAsLazyPagingItems()
+        val animeList = screenModel.animePagerFlow.collectAsLazyPagingItems()
         val animeSource = screenModel.source as? AnimeCatalogueSource
 
         val navigator = LocalNavigator.currentOrThrow
