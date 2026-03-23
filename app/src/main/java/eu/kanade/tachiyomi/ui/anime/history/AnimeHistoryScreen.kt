@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.model.rememberScreenModel
@@ -32,6 +31,7 @@ import eu.kanade.domain.anime.model.toSAnime
 import eu.kanade.presentation.components.AppBarTitle
 import eu.kanade.presentation.components.SearchToolbar
 import eu.kanade.presentation.components.relativeDateText
+import eu.kanade.presentation.util.rememberResourceBitmapPainter
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.animateItemFastScroll
 import eu.kanade.presentation.util.relativeTimeSpanString
@@ -150,7 +150,7 @@ private fun AnimeHistoryRow(
         AsyncImage(
             model = item.thumbnailUrl,
             contentDescription = item.title,
-            error = painterResource(R.drawable.cover_error),
+            error = rememberResourceBitmapPainter(id = R.drawable.cover_error),
             modifier = Modifier
                 .size(width = 56.dp, height = 84.dp)
                 .clip(MaterialTheme.shapes.small),

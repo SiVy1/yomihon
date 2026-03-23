@@ -38,13 +38,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
 import eu.kanade.presentation.components.AppBar
+import eu.kanade.presentation.util.rememberResourceBitmapPainter
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.relativeTimeSpanString
 import eu.kanade.tachiyomi.R
@@ -186,7 +186,7 @@ private fun AnimeHeader(
         AsyncImage(
             model = anime.thumbnail_url,
             contentDescription = anime.title,
-            error = painterResource(R.drawable.cover_error),
+            error = rememberResourceBitmapPainter(id = R.drawable.cover_error),
             modifier = Modifier
                 .size(width = 108.dp, height = 156.dp)
                 .clip(MaterialTheme.shapes.medium),
@@ -218,7 +218,7 @@ private fun AnimeHeader(
             }
             FilledTonalButton(
                 onClick = onToggleLibrary,
-                enabled = localAnime != null,
+                enabled = true,
             ) {
                 Text(
                     text = if (localAnime?.favorite == true) {

@@ -13,6 +13,8 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -38,7 +40,15 @@ class AnimePlayerController(
 ) {
     private val appContext = context.applicationContext
 
-    val player: ExoPlayer = ExoPlayer.Builder(context).build()
+    val player: ExoPlayer = ExoPlayer.Builder(context)
+        .setMediaSourceFactory(
+            DefaultMediaSourceFactory(context).setDataSourceFactory(
+                DefaultHttpDataSource.Factory()
+                    .setConnectTimeoutMs(30_000)
+                    .setReadTimeoutMs(120_000),
+            ),
+        )
+        .build()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val _state = MutableStateFlow(
@@ -296,7 +306,6 @@ class AnimePlayerController(
                         subtitleTracks = state.value.availableSubtitleTracks,
                     )
                 }
-                playbackService?.selectSubtitleTrack(trackId)
             }
         }
 

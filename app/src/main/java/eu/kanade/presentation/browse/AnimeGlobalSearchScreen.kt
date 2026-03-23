@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -24,6 +23,7 @@ import eu.kanade.presentation.browse.components.GlobalSearchErrorResultItem
 import eu.kanade.presentation.browse.components.GlobalSearchLoadingResultItem
 import eu.kanade.presentation.browse.components.GlobalSearchResultItem
 import eu.kanade.presentation.browse.components.GlobalSearchToolbar
+import eu.kanade.presentation.util.rememberResourceBitmapPainter
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.source.AnimeCatalogueSource
 import eu.kanade.tachiyomi.source.model.SAnime
@@ -123,7 +123,7 @@ private fun AnimeSearchResultRow(
         AsyncImage(
             model = anime.thumbnail_url,
             contentDescription = anime.title,
-            error = painterResource(R.drawable.cover_error),
+            error = rememberResourceBitmapPainter(id = R.drawable.cover_error),
             modifier = Modifier
                 .size(width = 52.dp, height = 76.dp)
                 .clip(MaterialTheme.shapes.small),

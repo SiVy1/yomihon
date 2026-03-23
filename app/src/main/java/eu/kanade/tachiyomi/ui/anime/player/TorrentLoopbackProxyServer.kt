@@ -3,8 +3,10 @@ package eu.kanade.tachiyomi.ui.anime.player
 import fi.iki.elonen.NanoHTTPD
 import kotlinx.coroutines.runBlocking
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.io.RandomAccessFile
+import java.lang.Thread.sleep
 import kotlin.math.min
 
 class TorrentLoopbackProxyServer(
@@ -128,9 +130,7 @@ private class TorrentStreamingInputStream(
     private val rangePreparer: suspend (sessionId: String, fileId: String, start: Long, endExclusive: Long) -> Unit,
 ) : InputStream() {
 
-    private val raf = RandomAccessFile(proxiedFile.file, "r").apply {
-        seek(startOffset)
-    }
+    private var raf: RandomAccessFile? = null
     private var position = startOffset
     private var remaining = length
 
@@ -150,16 +150,8 @@ private class TorrentStreamingInputStream(
         val requested = min(length.toLong(), remaining).coerceAtMost(CHUNK_SIZE).toInt()
         if (requested <= 0) return -1
 
-        runBlocking {
-            rangePreparer(
-                proxiedFile.sessionId,
-                proxiedFile.fileId,
-                position,
-                position + requested,
-            )
-        }
-
-        val read = raf.read(buffer, offset, requested)
+        ensureFileReady(position + requested)
+        val read = raf?.read(buffer, offset, requested) ?: -1
         if (read <= 0) return -1
 
         position += read
@@ -168,10 +160,39 @@ private class TorrentStreamingInputStream(
     }
 
     override fun close() {
-        raf.close()
+        raf?.close()
+    }
+
+    private fun ensureFileReady(
+        endExclusive: Long,
+    ) {
+        runBlocking {
+            rangePreparer(
+                proxiedFile.sessionId,
+                proxiedFile.fileId,
+                position,
+                endExclusive,
+            )
+        }
+
+        val deadline = System.currentTimeMillis() + FILE_WAIT_TIMEOUT_MS
+        while (!proxiedFile.file.exists() && System.currentTimeMillis() < deadline) {
+            sleep(FILE_WAIT_DELAY_MS)
+        }
+
+        if (!proxiedFile.file.exists()) {
+            throw IOException("Torrent file is not available yet: ${proxiedFile.file.name}")
+        }
+
+        if (raf == null) {
+            raf = RandomAccessFile(proxiedFile.file, "r")
+        }
+        raf?.seek(position)
     }
 
     private companion object {
-        const val CHUNK_SIZE = 256 * 1024L
+        const val CHUNK_SIZE = 64 * 1024L
+        const val FILE_WAIT_TIMEOUT_MS = 10_000L
+        const val FILE_WAIT_DELAY_MS = 50L
     }
 }

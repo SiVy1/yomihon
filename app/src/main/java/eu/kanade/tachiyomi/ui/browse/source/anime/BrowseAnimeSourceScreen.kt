@@ -14,11 +14,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.NewReleases
 import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Whatshot
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -37,7 +36,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
@@ -52,6 +50,7 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.AppBarTitle
 import eu.kanade.presentation.components.SearchToolbar
+import eu.kanade.presentation.util.rememberResourceBitmapPainter
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.source.AnimeCatalogueSource
@@ -63,7 +62,9 @@ import eu.kanade.tachiyomi.ui.browse.source.anime.BrowseAnimeSourceScreenModel.L
 import eu.kanade.tachiyomi.ui.browse.source.browse.SourceFilterDialog
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.domain.source.model.StubSource
+import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
+import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
@@ -182,12 +183,12 @@ data class BrowseAnimeSourceScreen(
                             },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Outlined.Whatshot,
+                                    imageVector = Icons.Outlined.Favorite,
                                     contentDescription = null,
                                     modifier = Modifier.size(FilterChipDefaults.IconSize),
                                 )
                             },
-                            label = { Text("Popular") },
+                            label = { Text(stringResource(MR.strings.popular)) },
                         )
                         if (animeSource?.supportsLatest == true) {
                             FilterChip(
@@ -203,21 +204,9 @@ data class BrowseAnimeSourceScreen(
                                         modifier = Modifier.size(FilterChipDefaults.IconSize),
                                     )
                                 },
-                                label = { Text("Latest") },
+                                label = { Text(stringResource(MR.strings.latest)) },
                             )
                         }
-                        FilterChip(
-                            selected = state.listing is Listing.Search && !state.toolbarQuery.isNullOrBlank(),
-                            onClick = { screenModel.setToolbarQuery(state.toolbarQuery ?: "") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Search,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(FilterChipDefaults.IconSize),
-                                )
-                            },
-                            label = { Text("Search") },
-                        )
                         if (state.filters.isNotEmpty()) {
                             FilterChip(
                                 selected = state.listing is Listing.Search,
@@ -229,7 +218,7 @@ data class BrowseAnimeSourceScreen(
                                         modifier = Modifier.size(FilterChipDefaults.IconSize),
                                     )
                                 },
-                                label = { Text("Filters") },
+                                label = { Text(stringResource(MR.strings.action_filter)) },
                             )
                         }
                     }
@@ -308,7 +297,7 @@ private fun AnimeBrowseItem(
         AsyncImage(
             model = anime.thumbnail_url,
             contentDescription = anime.title,
-            error = painterResource(R.drawable.cover_error),
+            error = rememberResourceBitmapPainter(id = R.drawable.cover_error),
             modifier = Modifier
                 .size(width = 64.dp, height = 96.dp)
                 .clip(MaterialTheme.shapes.small),

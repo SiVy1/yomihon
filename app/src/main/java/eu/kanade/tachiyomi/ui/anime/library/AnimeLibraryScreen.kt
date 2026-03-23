@@ -29,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.model.rememberScreenModel
@@ -41,6 +40,7 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.AppBarTitle
 import eu.kanade.presentation.components.SearchToolbar
+import eu.kanade.presentation.util.rememberResourceBitmapPainter
 import eu.kanade.presentation.util.relativeTimeSpanString
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.R
@@ -182,7 +182,7 @@ private fun AnimeLibraryRow(
         AsyncImage(
             model = item.anime.thumbnailUrl,
             contentDescription = item.anime.title,
-            error = painterResource(R.drawable.cover_error),
+            error = rememberResourceBitmapPainter(id = R.drawable.cover_error),
             modifier = Modifier
                 .size(width = 64.dp, height = 96.dp)
                 .clip(MaterialTheme.shapes.small),

@@ -278,14 +278,23 @@ class JlibTorrentEngine(
         val firstPiece = session.torrentInfo.mapFile(file.fileIndex, safeStart, 1).piece()
         val lastPiece = session.torrentInfo.mapFile(file.fileIndex, max(safeStart, safeEnd - 1L), 1).piece()
 
-        for (piece in firstPiece..lastPiece) {
-            session.handle.piecePriority(piece, Priority.SEVEN)
-            session.handle.setPieceDeadline(piece, 0)
+        runCatching {
+            for (piece in firstPiece..lastPiece) {
+                session.handle.piecePriority(piece, Priority.SEVEN)
+                session.handle.setPieceDeadline(piece, 0)
+            }
+        }.getOrElse { error ->
+            throw IllegalStateException("Torrent session is no longer valid.", error)
         }
 
         val deadline = System.currentTimeMillis() + PIECE_WAIT_TIMEOUT_MS
         while (System.currentTimeMillis() < deadline) {
-            if ((firstPiece..lastPiece).all(session.handle::havePiece)) {
+            val allPiecesReady = runCatching {
+                (firstPiece..lastPiece).all(session.handle::havePiece)
+            }.getOrElse { error ->
+                throw IllegalStateException("Torrent session is no longer valid.", error)
+            }
+            if (allPiecesReady) {
                 return
             }
             delay(POLL_DELAY_MS)

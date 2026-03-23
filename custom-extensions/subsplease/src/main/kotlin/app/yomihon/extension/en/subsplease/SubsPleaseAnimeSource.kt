@@ -2,8 +2,7 @@ package app.yomihon.extension.en.subsplease
 
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
-import eu.kanade.tachiyomi.network.awaitSuccess
-import eu.kanade.tachiyomi.source.TorrentAnimeSource
+import eu.kanade.tachiyomi.source.TorrentAnimeSourceBase
 import eu.kanade.tachiyomi.source.model.AnimesPage
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.SAnime
@@ -21,6 +20,7 @@ import okhttp3.OkHttpClient
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import rx.Observable
 import uy.kohesive.injekt.injectLazy
 import java.net.URI
 import java.net.URLDecoder
@@ -30,7 +30,7 @@ import java.security.MessageDigest
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
-class SubsPleaseAnimeSource : TorrentAnimeSource {
+class SubsPleaseAnimeSource : TorrentAnimeSourceBase() {
 
     private val network: NetworkHelper by injectLazy()
     private val json = Json { ignoreUnknownKeys = true }
@@ -55,114 +55,126 @@ class SubsPleaseAnimeSource : TorrentAnimeSource {
 
     override fun getFilterList(): FilterList = FilterList()
 
-    override suspend fun getPopularAnime(page: Int): AnimesPage {
-        if (page != 1) return AnimesPage(emptyList(), false)
+    override fun fetchPopularAnime(page: Int): Observable<AnimesPage> {
+        return Observable.fromCallable {
+            if (page != 1) return@fromCallable AnimesPage(emptyList(), false)
 
-        val document = fetchDocument("$baseUrl/shows/")
-        val animes = document.select(".all-shows-link a[href]")
-            .map(::animeFromShowLink)
-            .distinctBy { it.url }
+            val document = fetchDocument("$baseUrl/shows/")
+            val animes = document.select(".all-shows-link a[href]")
+                .map(::animeFromShowLink)
+                .distinctBy { it.url }
 
-        return AnimesPage(animes, false)
+            AnimesPage(animes, false)
+        }
     }
 
-    override suspend fun getSearchAnime(page: Int, query: String, filters: FilterList): AnimesPage {
-        if (page != 1) return AnimesPage(emptyList(), false)
-        if (query.isBlank()) return getPopularAnime(page)
+    override fun fetchSearchAnime(page: Int, query: String, filters: FilterList): Observable<AnimesPage> {
+        return Observable.fromCallable {
+            if (page != 1) return@fromCallable AnimesPage(emptyList(), false)
+            if (query.isBlank()) return@fromCallable fetchPopularAnime(page).toBlocking().single()
 
-        val releases = fetchReleaseFeed(
-            function = "search",
-            extraParams = mapOf("s" to query.trim()),
-        )
+            val releases = fetchReleaseFeed(
+                function = "search",
+                extraParams = mapOf("s" to query.trim()),
+            )
 
-        val animes = releases
-            .mapNotNull(::animeFromRelease)
-            .distinctBy { it.url }
+            val animes = releases
+                .mapNotNull(::animeFromRelease)
+                .distinctBy { it.url }
 
-        return AnimesPage(animes, false)
+            AnimesPage(animes, false)
+        }
     }
 
-    override suspend fun getLatestUpdates(page: Int): AnimesPage {
-        if (page != 1) return AnimesPage(emptyList(), false)
+    override fun fetchLatestUpdates(page: Int): Observable<AnimesPage> {
+        return Observable.fromCallable {
+            if (page != 1) return@fromCallable AnimesPage(emptyList(), false)
 
-        val animes = fetchReleaseFeed("latest")
-            .mapNotNull(::animeFromRelease)
-            .distinctBy { it.url }
+            val animes = fetchReleaseFeed("latest")
+                .mapNotNull(::animeFromRelease)
+                .distinctBy { it.url }
 
-        return AnimesPage(animes, false)
+            AnimesPage(animes, false)
+        }
     }
 
-    override suspend fun getAnimeDetails(anime: SAnime): SAnime {
-        val document = fetchDocument(baseUrl + anime.url)
-        return anime.copy().apply {
-            title = document.selectFirst("h1.entry-title")?.text().orEmpty().ifBlank { anime.title }
-            description = document.select(".series-syn p")
-                .map { it.text().trim() }
-                .filter { it.isNotBlank() }
-                .joinToString("\n\n")
-                .ifBlank { null }
-            thumbnail_url = document.selectFirst("#secondary img[src], .sidebar img[src], img[src]")
-                ?.attr("abs:src")
+    override fun fetchAnimeDetails(anime: SAnime): Observable<SAnime> {
+        return Observable.fromCallable {
+            val document = fetchDocument(baseUrl + anime.url)
+            anime.copy().apply {
+                title = document.selectFirst("h1.entry-title")?.text().orEmpty().ifBlank { anime.title }
+                description = document.select(".series-syn p")
+                    .map { it.text().trim() }
+                    .filter { it.isNotBlank() }
+                    .joinToString("\n\n")
+                    .ifBlank { null }
+                thumbnail_url = document.selectFirst("#secondary img[src], .sidebar img[src], img[src]")
+                    ?.attr("abs:src")
+                    ?.ifBlank { null }
+                    ?: anime.thumbnail_url
+                initialized = true
+            }
+        }
+    }
+
+    override fun fetchEpisodeList(anime: SAnime): Observable<List<SEpisode>> {
+        return Observable.fromCallable {
+            val document = fetchDocument(baseUrl + anime.url)
+            val sid = document.selectFirst("#show-release-table")?.attr("sid").orEmpty()
+            if (sid.isBlank()) return@fromCallable emptyList()
+
+            val episodes = fetchShowEpisodes(sid)
+            episodes.map { (releaseTitle, release) ->
+                episodeFromRelease(
+                    showUrl = anime.url,
+                    sid = sid,
+                    releaseTitle = releaseTitle,
+                    release = release,
+                )
+            }
+        }
+    }
+
+    override fun fetchTorrentDescriptors(episode: SEpisode): Observable<List<TorrentDescriptor>> {
+        return Observable.fromCallable {
+            val episodeParams = parseEpisodeUrl(episode.url)
+            val sid = episodeParams["sid"].orEmpty()
+            if (sid.isBlank()) return@fromCallable emptyList()
+
+            val releaseTitle = episodeParams["release"]
+                ?.let(::decodeQueryValue)
                 ?.ifBlank { null }
-                ?: anime.thumbnail_url
-            initialized = true
+                ?: episode.name
+
+            val release = fetchShowEpisodes(sid)
+                .firstOrNull { (title, _) -> title == releaseTitle }
+                ?.second
+                ?: return@fromCallable emptyList()
+
+            val publishedAt = release["release_date"].asString()?.let(::parseReleaseDate)
+            release["downloads"].asArray().mapNotNull { download ->
+                val downloadObject = download as? JsonObject ?: return@mapNotNull null
+                val magnet = downloadObject["magnet"].asString()
+                val torrentUrl = downloadObject["torrent"].asString()
+                val rawQuality = downloadObject["res"].asString()
+                val quality = rawQuality?.let { if (it.endsWith("p")) it else "${it}p" }
+
+                TorrentDescriptor(
+                    releaseTitle = releaseTitle,
+                    magnetUri = magnet,
+                    torrentUrl = torrentUrl,
+                    infoHash = magnet?.let(::extractInfoHash),
+                    sizeBytes = magnet?.let(::extractMagnetSize),
+                    quality = quality,
+                    fileNameHint = magnet?.let(::extractDisplayName),
+                    publishedAt = publishedAt,
+                    subtitleHint = "Embedded or sidecar subtitles",
+                )
+            }
         }
     }
 
-    override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
-        val document = fetchDocument(baseUrl + anime.url)
-        val sid = document.selectFirst("#show-release-table")?.attr("sid").orEmpty()
-        if (sid.isBlank()) return emptyList()
-
-        val episodes = fetchShowEpisodes(sid)
-        return episodes.map { (releaseTitle, release) ->
-            episodeFromRelease(
-                showUrl = anime.url,
-                sid = sid,
-                releaseTitle = releaseTitle,
-                release = release,
-            )
-        }
-    }
-
-    override suspend fun getTorrentDescriptors(episode: SEpisode): List<TorrentDescriptor> {
-        val episodeParams = parseEpisodeUrl(episode.url)
-        val sid = episodeParams["sid"].orEmpty()
-        if (sid.isBlank()) return emptyList()
-
-        val releaseTitle = episodeParams["release"]
-            ?.let(::decodeQueryValue)
-            ?.ifBlank { null }
-            ?: episode.name
-
-        val release = fetchShowEpisodes(sid)
-            .firstOrNull { (title, _) -> title == releaseTitle }
-            ?.second
-            ?: return emptyList()
-
-        val publishedAt = release["release_date"].asString()?.let(::parseReleaseDate)
-        return release["downloads"].asArray().mapNotNull { download ->
-            val downloadObject = download as? JsonObject ?: return@mapNotNull null
-            val magnet = downloadObject["magnet"].asString()
-            val torrentUrl = downloadObject["torrent"].asString()
-            val rawQuality = downloadObject["res"].asString()
-            val quality = rawQuality?.let { if (it.endsWith("p")) it else "${it}p" }
-
-            TorrentDescriptor(
-                releaseTitle = releaseTitle,
-                magnetUri = magnet,
-                torrentUrl = torrentUrl,
-                infoHash = magnet?.let(::extractInfoHash),
-                sizeBytes = magnet?.let(::extractMagnetSize),
-                quality = quality,
-                fileNameHint = magnet?.let(::extractDisplayName),
-                publishedAt = publishedAt,
-                subtitleHint = "Embedded or sidecar subtitles",
-            )
-        }
-    }
-
-    private suspend fun fetchReleaseFeed(
+    private fun fetchReleaseFeed(
         function: String,
         extraParams: Map<String, String> = emptyMap(),
     ): List<JsonObject> {
@@ -179,7 +191,7 @@ class SubsPleaseAnimeSource : TorrentAnimeSource {
         }
     }
 
-    private suspend fun fetchShowEpisodes(sid: String): List<Pair<String, JsonObject>> {
+    private fun fetchShowEpisodes(sid: String): List<Pair<String, JsonObject>> {
         val payload = fetchJson(
             apiUrl(
                 function = "show",
@@ -194,18 +206,24 @@ class SubsPleaseAnimeSource : TorrentAnimeSource {
             }
     }
 
-    private suspend fun fetchDocument(url: String): Document {
+    private fun fetchDocument(url: String): Document {
         return client.newCall(GET(url, headers))
-            .awaitSuccess()
+            .execute()
             .use { response ->
+                if (!response.isSuccessful) {
+                    throw IllegalStateException("Request failed: ${response.code} $url")
+                }
                 Jsoup.parse(response.body.string(), baseUrl)
             }
     }
 
-    private suspend fun fetchJson(url: String): JsonElement {
+    private fun fetchJson(url: String): JsonElement {
         return client.newCall(GET(url, headers))
-            .awaitSuccess()
+            .execute()
             .use { response ->
+                if (!response.isSuccessful) {
+                    throw IllegalStateException("Request failed: ${response.code} $url")
+                }
                 json.parseToJsonElement(response.body.string())
             }
     }
