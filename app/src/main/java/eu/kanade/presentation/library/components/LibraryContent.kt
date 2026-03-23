@@ -21,7 +21,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.library.model.LibraryDisplayMode
-import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.presentation.core.components.material.PullRefresh
 import kotlin.time.Duration.Companion.seconds
 
@@ -35,10 +34,10 @@ fun LibraryContent(
     hasActiveFilters: Boolean,
     showPageTabs: Boolean,
     onChangeCurrentPage: (Int) -> Unit,
-    onClickManga: (Long) -> Unit,
-    onContinueReadingClicked: ((LibraryManga) -> Unit)?,
-    onToggleSelection: (Category, LibraryManga) -> Unit,
-    onToggleRangeSelection: (Category, LibraryManga) -> Unit,
+    onClickItem: (LibraryItem) -> Unit,
+    onContinueReadingClicked: ((LibraryItem) -> Unit)?,
+    onToggleSelection: (Category, LibraryItem) -> Unit,
+    onToggleRangeSelection: (Category, LibraryItem) -> Unit,
     onRefresh: () -> Boolean,
     onGlobalSearchClicked: () -> Unit,
     getItemCountForCategory: (Category) -> Int?,
@@ -101,11 +100,11 @@ fun LibraryContent(
                 getDisplayMode = getDisplayMode,
                 getColumnsForOrientation = getColumnsForOrientation,
                 getItemsForCategory = getItemsForCategory,
-                onClickManga = { category, manga ->
+                onClickManga = { category, item ->
                     if (selection.isNotEmpty()) {
-                        onToggleSelection(category, manga)
+                        onToggleSelection(category, item)
                     } else {
-                        onClickManga(manga.manga.id)
+                        onClickItem(item)
                     }
                 },
                 onLongClickManga = onToggleRangeSelection,

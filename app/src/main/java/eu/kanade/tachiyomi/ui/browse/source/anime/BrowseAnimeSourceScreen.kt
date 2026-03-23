@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.ui.browse.source.anime
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.NewReleases
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -33,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
@@ -43,11 +43,11 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.util.ifSourcesLoaded
 import eu.kanade.presentation.browse.MissingSourceScreen
 import eu.kanade.presentation.library.components.CommonMangaItemDefaults
+import eu.kanade.presentation.library.components.MangaCompactGridItem
 import eu.kanade.presentation.library.components.MangaComfortableGridItem
-import eu.kanade.presentation.components.AppBar
-import eu.kanade.presentation.components.AppBarActions
-import eu.kanade.presentation.components.AppBarTitle
-import eu.kanade.presentation.components.SearchToolbar
+import eu.kanade.presentation.library.components.MangaListItem
+import eu.kanade.presentation.browse.components.BrowseSourceToolbar
+import eu.kanade.presentation.browse.components.InLibraryBadge
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.source.AnimeCatalogueSource
 import eu.kanade.tachiyomi.source.ConfigurableSource
@@ -56,9 +56,9 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.browse.extension.details.SourcePreferencesScreen
 import eu.kanade.tachiyomi.ui.browse.source.anime.BrowseAnimeSourceScreenModel.Listing
 import eu.kanade.tachiyomi.ui.browse.source.browse.SourceFilterDialog
-import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.i18n.MR
+import tachiyomi.domain.library.model.LibraryDisplayMode
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.components.material.padding
@@ -124,46 +124,30 @@ data class BrowseAnimeSourceScreen(
                 androidx.compose.foundation.layout.Column(
                     modifier = Modifier.background(MaterialTheme.colorScheme.surface),
                 ) {
-                    SearchToolbar(
-                        titleContent = { AppBarTitle(screenModel.source.name) },
+                    BrowseSourceToolbar(
                         searchQuery = state.toolbarQuery,
-                        onChangeSearchQuery = screenModel::setToolbarQuery,
+                        onSearchQueryChange = screenModel::setToolbarQuery,
+                        source = screenModel.source,
+                        displayMode = screenModel.displayMode,
+                        onDisplayModeChange = { screenModel.displayMode = it },
                         navigateUp = navigateUp,
-                        onSearch = { screenModel.search(it) },
-                        actions = {
-                            AppBarActions(
-                                actions = persistentListOf<AppBar.AppBarAction>().builder()
-                                    .apply {
-                                        val webUrl = (screenModel.source as? HttpSource)?.baseUrl
-                                        if (webUrl != null) {
-                                            add(
-                                                AppBar.Action(
-                                                    title = "Open site",
-                                                    icon = Icons.Outlined.Public,
-                                                    onClick = {
-                                                        navigator.push(
-                                                            eu.kanade.tachiyomi.ui.webview.WebViewScreen(
-                                                                url = webUrl,
-                                                                initialTitle = screenModel.source.name,
-                                                                sourceId = screenModel.source.id,
-                                                            ),
-                                                        )
-                                                    },
-                                                ),
-                                            )
-                                        }
-                                        if (screenModel.source is ConfigurableSource) {
-                                            add(
-                                                AppBar.OverflowAction(
-                                                    title = "Settings",
-                                                    onClick = { navigator.push(SourcePreferencesScreen(sourceId)) },
-                                                ),
-                                            )
-                                        }
-                                    }
-                                    .build(),
+                        onWebViewClick = {
+                            val webUrl = (screenModel.source as? HttpSource)?.baseUrl ?: return@BrowseSourceToolbar
+                            navigator.push(
+                                eu.kanade.tachiyomi.ui.webview.WebViewScreen(
+                                    url = webUrl,
+                                    initialTitle = screenModel.source.name,
+                                    sourceId = screenModel.source.id,
+                                ),
                             )
                         },
+                        onHelpClick = {},
+                        onSettingsClick = {
+                            if (screenModel.source is ConfigurableSource) {
+                                navigator.push(SourcePreferencesScreen(sourceId))
+                            }
+                        },
+                        onSearch = { screenModel.search(it) },
                     )
 
                     Row(
@@ -238,39 +222,37 @@ data class BrowseAnimeSourceScreen(
                 }
 
                 else -> {
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 128.dp),
-                        contentPadding = paddingValues + PaddingValues(
-                            start = MaterialTheme.padding.small,
-                            top = MaterialTheme.padding.small,
-                            end = MaterialTheme.padding.small,
-                            bottom = MaterialTheme.padding.medium,
-                        ),
-                        horizontalArrangement = Arrangement.spacedBy(CommonMangaItemDefaults.GridHorizontalSpacer),
-                        verticalArrangement = Arrangement.spacedBy(CommonMangaItemDefaults.GridVerticalSpacer),
-                    ) {
-                        items(
-                            count = animeList.itemCount,
-                            key = { index -> animeList[index]?.url ?: index },
-                        ) { index ->
-                            val anime = animeList[index] ?: return@items
-                            AnimeBrowseItem(
-                                anime = anime,
-                                sourceId = sourceId,
-                                onClick = { navigator.push(AnimeDetailsScreen(sourceId, anime)) },
-                            )
-                        }
-
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            if (animeList.loadState.append is LoadState.Loading) {
-                                Text(
-                                    text = "Loading more...",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(MaterialTheme.padding.medium),
-                                )
-                            }
-                        }
+                    val contentPadding = paddingValues + PaddingValues(
+                        start = MaterialTheme.padding.small,
+                        top = MaterialTheme.padding.small,
+                        end = MaterialTheme.padding.small,
+                        bottom = MaterialTheme.padding.medium,
+                    )
+                    when (screenModel.displayMode) {
+                        LibraryDisplayMode.List -> AnimeBrowseList(
+                            animeList = animeList,
+                            contentPadding = contentPadding,
+                            sourceId = sourceId,
+                            onAnimeClick = { navigator.push(AnimeDetailsScreen(sourceId, it)) },
+                        )
+                        LibraryDisplayMode.ComfortableGrid -> AnimeBrowseGrid(
+                            animeList = animeList,
+                            sourceId = sourceId,
+                            contentPadding = contentPadding,
+                            columns = screenModel.getColumnsPreference(LocalConfiguration.current.orientation),
+                            compact = false,
+                            showTitle = true,
+                            onAnimeClick = { navigator.push(AnimeDetailsScreen(sourceId, it)) },
+                        )
+                        LibraryDisplayMode.CompactGrid, LibraryDisplayMode.CoverOnlyGrid -> AnimeBrowseGrid(
+                            animeList = animeList,
+                            sourceId = sourceId,
+                            contentPadding = contentPadding,
+                            columns = screenModel.getColumnsPreference(LocalConfiguration.current.orientation),
+                            compact = true,
+                            showTitle = screenModel.displayMode == LibraryDisplayMode.CompactGrid,
+                            onAnimeClick = { navigator.push(AnimeDetailsScreen(sourceId, it)) },
+                        )
                     }
                 }
             }
@@ -292,21 +274,90 @@ data class BrowseAnimeSourceScreen(
 }
 
 @Composable
-private fun AnimeBrowseItem(
-    anime: SAnime,
+private fun AnimeBrowseList(
+    animeList: androidx.paging.compose.LazyPagingItems<SAnime>,
+    contentPadding: PaddingValues,
     sourceId: Long,
-    onClick: () -> Unit,
+    onAnimeClick: (SAnime) -> Unit,
 ) {
-    MangaComfortableGridItem(
-        coverData = MangaCover(
-            mangaId = 0L,
-            sourceId = sourceId,
-            isMangaFavorite = false,
-            url = anime.thumbnail_url,
-            lastModified = 0L,
-        ),
-        title = anime.title,
-        onClick = onClick,
-        onLongClick = onClick,
+    LazyColumn(
+        contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
+    ) {
+        items(
+            count = animeList.itemCount,
+            key = { index -> animeList[index]?.url ?: index },
+        ) { index ->
+            val anime = animeList[index] ?: return@items
+            MangaListItem(
+                title = anime.title,
+                coverData = anime.asCoverData(sourceId),
+                badge = { InLibraryBadge(enabled = false) },
+                onClick = { onAnimeClick(anime) },
+                onLongClick = { onAnimeClick(anime) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AnimeBrowseGrid(
+    animeList: androidx.paging.compose.LazyPagingItems<SAnime>,
+    sourceId: Long,
+    contentPadding: PaddingValues,
+    columns: GridCells,
+    compact: Boolean,
+    showTitle: Boolean,
+    onAnimeClick: (SAnime) -> Unit,
+) {
+    LazyVerticalGrid(
+        columns = columns,
+        contentPadding = contentPadding,
+        horizontalArrangement = Arrangement.spacedBy(CommonMangaItemDefaults.GridHorizontalSpacer),
+        verticalArrangement = Arrangement.spacedBy(CommonMangaItemDefaults.GridVerticalSpacer),
+    ) {
+        items(
+            count = animeList.itemCount,
+            key = { index -> animeList[index]?.url ?: index },
+        ) { index ->
+            val anime = animeList[index] ?: return@items
+            if (compact) {
+                MangaCompactGridItem(
+                    title = anime.title.takeIf { showTitle },
+                    coverData = anime.asCoverData(sourceId),
+                    coverBadgeStart = { InLibraryBadge(enabled = false) },
+                    onClick = { onAnimeClick(anime) },
+                    onLongClick = { onAnimeClick(anime) },
+                )
+            } else {
+                MangaComfortableGridItem(
+                    coverData = anime.asCoverData(sourceId),
+                    title = anime.title,
+                    coverBadgeStart = { InLibraryBadge(enabled = false) },
+                    onClick = { onAnimeClick(anime) },
+                    onLongClick = { onAnimeClick(anime) },
+                )
+            }
+        }
+
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            if (animeList.loadState.append is LoadState.Loading) {
+                Text(
+                    text = "Loading more...",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(MaterialTheme.padding.medium),
+                )
+            }
+        }
+    }
+}
+
+private fun SAnime.asCoverData(sourceId: Long): MangaCover {
+    return MangaCover(
+        mangaId = 0L,
+        sourceId = sourceId,
+        isMangaFavorite = false,
+        url = thumbnail_url,
+        lastModified = 0L,
     )
 }

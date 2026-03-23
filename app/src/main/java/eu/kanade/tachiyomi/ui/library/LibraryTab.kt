@@ -27,6 +27,7 @@ import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.TabOptions
+import eu.kanade.domain.anime.model.toSAnime
 import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.library.DeleteLibraryMangaDialog
 import eu.kanade.presentation.library.LibrarySettingsDialog
@@ -38,8 +39,8 @@ import eu.kanade.presentation.more.onboarding.GETTING_STARTED_URL
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
+import eu.kanade.tachiyomi.ui.browse.source.anime.AnimeDetailsScreen
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
-import eu.kanade.tachiyomi.ui.anime.library.AnimeLibraryScreen
 import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.main.MainActivity
@@ -54,7 +55,6 @@ import mihon.feature.migration.config.MigrationConfigScreen
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.category.model.Category
-import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
@@ -130,7 +130,15 @@ data object LibraryTab : Tab {
                         scope.launch {
                             val randomItem = screenModel.getRandomLibraryItemForCurrentCategory()
                             if (randomItem != null) {
-                                navigator.push(MangaScreen(randomItem.libraryManga.manga.id))
+                                when (randomItem.type) {
+                                    LibraryItemType.Manga -> navigator.push(MangaScreen(randomItem.libraryManga!!.manga.id))
+                                    LibraryItemType.Anime -> navigator.push(
+                                        AnimeDetailsScreen(
+                                            randomItem.libraryAnime!!.anime.source,
+                                            randomItem.libraryAnime.anime.toSAnime(),
+                                        ),
+                                    )
+                                }
                             } else {
                                 snackbarHostState.showSnackbar(
                                     context.stringResource(MR.strings.information_no_entries_found),
@@ -138,7 +146,6 @@ data object LibraryTab : Tab {
                             }
                         }
                     },
-                    onClickOpenAnimeLibrary = { navigator.push(AnimeLibraryScreen()) },
                     onCycleNovelFilter = {
                         val nextMode = state.searchQuery.toNovelFilterMode().next()
                         screenModel.search(state.searchQuery.withNovelFilter(nextMode))
@@ -195,16 +202,38 @@ data object LibraryTab : Tab {
                         hasActiveFilters = state.hasActiveFilters,
                         showPageTabs = state.showCategoryTabs || !state.searchQuery.isNullOrEmpty(),
                         onChangeCurrentPage = screenModel::updateActiveCategoryIndex,
-                        onClickManga = { navigator.push(MangaScreen(it)) },
-                        onContinueReadingClicked = { it: LibraryManga ->
-                            scope.launchIO {
-                                val chapter = screenModel.getNextUnreadChapter(it.manga)
-                                if (chapter != null) {
-                                    context.startActivity(
-                                        ReaderActivity.newIntent(context, chapter.mangaId, chapter.id),
+                        onClickItem = { item: LibraryItem ->
+                            when (item.type) {
+                                LibraryItemType.Manga -> navigator.push(MangaScreen(item.libraryManga!!.manga.id))
+                                LibraryItemType.Anime -> navigator.push(
+                                    AnimeDetailsScreen(
+                                        item.libraryAnime!!.anime.source,
+                                        item.libraryAnime.anime.toSAnime(),
+                                    ),
+                                )
+                            }
+                        },
+                        onContinueReadingClicked = { item: LibraryItem ->
+                            when (item.type) {
+                                LibraryItemType.Manga -> {
+                                    scope.launchIO {
+                                        val chapter = screenModel.getNextUnreadChapter(item.libraryManga!!.manga)
+                                        if (chapter != null) {
+                                            context.startActivity(
+                                                ReaderActivity.newIntent(context, chapter.mangaId, chapter.id),
+                                            )
+                                        } else {
+                                            snackbarHostState.showSnackbar(context.stringResource(MR.strings.no_next_chapter))
+                                        }
+                                    }
+                                }
+                                LibraryItemType.Anime -> {
+                                    navigator.push(
+                                        AnimeDetailsScreen(
+                                            item.libraryAnime!!.anime.source,
+                                            item.libraryAnime.anime.toSAnime(),
+                                        ),
                                     )
-                                } else {
-                                    snackbarHostState.showSnackbar(context.stringResource(MR.strings.no_next_chapter))
                                 }
                             }
                             Unit

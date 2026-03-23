@@ -6,8 +6,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import eu.kanade.tachiyomi.ui.library.LibraryItem
-import tachiyomi.domain.library.model.LibraryManga
-import tachiyomi.domain.manga.model.MangaCover
 
 @Composable
 internal fun LibraryComfortableGrid(
@@ -15,9 +13,9 @@ internal fun LibraryComfortableGrid(
     columns: Int,
     contentPadding: PaddingValues,
     selection: Set<Long>,
-    onClick: (LibraryManga) -> Unit,
-    onLongClick: (LibraryManga) -> Unit,
-    onClickContinueReading: ((LibraryManga) -> Unit)?,
+    onClick: (LibraryItem) -> Unit,
+    onLongClick: (LibraryItem) -> Unit,
+    onClickContinueReading: ((LibraryItem) -> Unit)?,
     searchQuery: String?,
     onGlobalSearchClicked: () -> Unit,
 ) {
@@ -32,17 +30,10 @@ internal fun LibraryComfortableGrid(
             items = items,
             contentType = { "library_comfortable_grid_item" },
         ) { libraryItem ->
-            val manga = libraryItem.libraryManga.manga
             MangaComfortableGridItem(
-                isSelected = manga.id in selection,
-                title = manga.title,
-                coverData = MangaCover(
-                    mangaId = manga.id,
-                    sourceId = manga.source,
-                    isMangaFavorite = manga.favorite,
-                    url = manga.thumbnailUrl,
-                    lastModified = manga.coverLastModified,
-                ),
+                isSelected = libraryItem.id in selection,
+                title = libraryItem.title,
+                coverData = libraryItem.coverData,
                 coverBadgeStart = {
                     LightNovelBadge(isLightNovel = libraryItem.isLightNovel)
                     DownloadsBadge(count = libraryItem.downloadCount)
@@ -54,10 +45,10 @@ internal fun LibraryComfortableGrid(
                         sourceLanguage = libraryItem.sourceLanguage,
                     )
                 },
-                onLongClick = { onLongClick(libraryItem.libraryManga) },
-                onClick = { onClick(libraryItem.libraryManga) },
+                onLongClick = { onLongClick(libraryItem) },
+                onClick = { onClick(libraryItem) },
                 onClickContinueReading = if (onClickContinueReading != null && libraryItem.unreadCount > 0) {
-                    { onClickContinueReading(libraryItem.libraryManga) }
+                    { onClickContinueReading(libraryItem) }
                 } else {
                     null
                 },

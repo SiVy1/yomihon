@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.anime.player
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
@@ -44,6 +45,7 @@ class AnimePlayerActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
 
         val request = readPlaybackRequest() ?: run {
             finish()
@@ -59,6 +61,11 @@ class AnimePlayerActivity : BaseActivity() {
                 state = state,
                 player = controller.player,
                 onBack = ::finish,
+                onStopPlayback = ::stopPlayback,
+                onTogglePlayPause = controller::togglePlayPause,
+                onSeekTo = controller::seekTo,
+                onSeekBy = controller::seekBy,
+                onSetPlaybackSpeed = controller::setPlaybackSpeed,
                 onSelectVideoFile = controller::selectVideoFile,
                 onSelectSubtitleTrack = controller::selectSubtitleTrack,
             )
@@ -83,5 +90,12 @@ class AnimePlayerActivity : BaseActivity() {
 
     private fun readPlaybackRequest(): AnimePlaybackRequest? {
         return readPlaybackRequestFromIntent(intent)
+    }
+
+    private fun stopPlayback() {
+        controller?.persistProgress()
+        controller?.release(stopPlaybackSession = true)
+        controller = null
+        finish()
     }
 }

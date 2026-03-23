@@ -19,6 +19,8 @@ interface AnimeRepository {
 
     fun getLibraryAnimeAsFlow(): Flow<List<LibraryAnime>>
 
+    suspend fun setAnimeCategories(animeId: Long, categoryIds: List<Long>)
+
     suspend fun update(update: AnimeUpdate): Boolean
 
     suspend fun insertNetworkAnime(anime: List<Anime>): List<Anime>

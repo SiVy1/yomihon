@@ -1,5 +1,6 @@
 package tachiyomi.data.anime
 
+import tachiyomi.data.LongListColumnAdapter
 import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.domain.anime.model.Anime
 import tachiyomi.domain.anime.model.LibraryAnime
@@ -61,6 +62,7 @@ object AnimeMapper {
         favoriteModifiedAt: Long?,
         version: Long,
         aniListId: Long?,
+        categories: String,
         totalCount: Long,
         seenCount: Double,
         bookmarkCount: Double,
@@ -87,6 +89,7 @@ object AnimeMapper {
             version = version,
             aniListId = aniListId,
         ),
+        categories = LongListColumnAdapter.decode(categories),
         totalEpisodes = totalCount,
         seenCount = seenCount.toLong(),
         bookmarkCount = bookmarkCount.toLong(),

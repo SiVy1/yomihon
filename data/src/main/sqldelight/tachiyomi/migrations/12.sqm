@@ -1,0 +1,28 @@
+CREATE TABLE IF NOT EXISTS animes_categories(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    anime_id INTEGER NOT NULL,
+    category_id INTEGER NOT NULL,
+    FOREIGN KEY(category_id) REFERENCES categories (_id)
+    ON DELETE CASCADE,
+    FOREIGN KEY(anime_id) REFERENCES animes (_id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_animes_categories_anime_id ON animes_categories(anime_id);
+CREATE INDEX IF NOT EXISTS idx_animes_categories_category_id ON animes_categories(category_id);
+
+INSERT INTO animes_categories(anime_id, category_id)
+SELECT
+    animes._id,
+    CASE
+        WHEN EXISTS(SELECT 1 FROM preferences WHERE key = 'default_category' AND CAST(value AS INTEGER) > 0)
+        THEN CAST((SELECT value FROM preferences WHERE key = 'default_category') AS INTEGER)
+        ELSE 0
+    END
+FROM animes
+WHERE animes.favorite = 1
+AND NOT EXISTS (
+    SELECT 1
+    FROM animes_categories
+    WHERE animes_categories.anime_id = animes._id
+);

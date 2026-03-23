@@ -1,5 +1,10 @@
 package eu.kanade.tachiyomi.ui.browse.source.anime
 
+import android.content.res.Configuration
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Immutable
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
@@ -8,6 +13,8 @@ import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import androidx.paging.cachedIn
 import cafe.adriel.voyager.core.model.StateScreenModel
+import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.core.preference.asState
 import eu.kanade.presentation.util.ioCoroutineScope
 import eu.kanade.tachiyomi.source.AnimeCatalogueSource
 import eu.kanade.tachiyomi.source.Source
@@ -20,6 +27,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import eu.kanade.domain.source.service.SourcePreferences
+import tachiyomi.domain.library.model.LibraryDisplayMode
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -28,7 +38,11 @@ class BrowseAnimeSourceScreenModel(
     private val sourceId: Long,
     listingQuery: String?,
     sourceManager: SourceManager = Injekt.get(),
+    sourcePreferences: SourcePreferences = Injekt.get(),
+    private val libraryPreferences: LibraryPreferences = Injekt.get(),
 ) : StateScreenModel<BrowseAnimeSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
+
+    var displayMode by sourcePreferences.sourceDisplayMode.asState(screenModelScope)
 
     val source: Source = sourceManager.getOrStub(sourceId)
 
@@ -63,6 +77,16 @@ class BrowseAnimeSourceScreenModel(
             }.flow.cachedIn(ioCoroutineScope)
         }
         .stateIn(ioCoroutineScope, SharingStarted.Lazily, PagingData.empty())
+
+    fun getColumnsPreference(orientation: Int): GridCells {
+        val isLandscape = orientation == Configuration.ORIENTATION_LANDSCAPE
+        val columns = if (isLandscape) {
+            libraryPreferences.landscapeColumns
+        } else {
+            libraryPreferences.portraitColumns
+        }.get()
+        return if (columns == 0) GridCells.Adaptive(128.dp) else GridCells.Fixed(columns)
+    }
 
     fun resetFilters() {
         val animeSource = source as? AnimeCatalogueSource ?: return

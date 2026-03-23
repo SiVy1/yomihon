@@ -10,6 +10,7 @@ import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
@@ -92,6 +93,10 @@ class AnimePlayerController(
             _state.update { it.copy(isPlaying = isPlaying) }
         }
 
+        override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+            _state.update { it.copy(playbackSpeed = playbackParameters.speed) }
+        }
+
         override fun onPlaybackStateChanged(playbackState: Int) {
             _state.update {
                 it.copy(
@@ -135,6 +140,7 @@ class AnimePlayerController(
                     isLoading = false,
                     positionMs = (episode?.lastSecondsWatched ?: 0L) * 1000L,
                     durationMs = (episode?.totalSeconds ?: 0L) * 1000L,
+                    playbackSpeed = player.playbackParameters.speed,
                 )
             }
         }
@@ -253,6 +259,29 @@ class AnimePlayerController(
             )
         }
         playbackService?.selectVideoFile(fileId)
+    }
+
+    fun togglePlayPause() {
+        if (player.isPlaying) {
+            player.pause()
+        } else {
+            player.play()
+        }
+        _state.update { it.copy(isPlaying = player.isPlaying) }
+    }
+
+    fun seekTo(positionMs: Long) {
+        player.seekTo(positionMs.coerceAtLeast(0L))
+        _state.update { it.copy(positionMs = player.currentPosition.coerceAtLeast(0L)) }
+    }
+
+    fun seekBy(offsetMs: Long) {
+        seekTo(player.currentPosition + offsetMs)
+    }
+
+    fun setPlaybackSpeed(speed: Float) {
+        player.playbackParameters = PlaybackParameters(speed)
+        _state.update { it.copy(playbackSpeed = speed) }
     }
 
     fun selectSubtitleTrack(trackId: String?) {

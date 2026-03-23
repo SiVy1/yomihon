@@ -21,6 +21,16 @@ object StringListColumnAdapter : ColumnAdapter<List<String>, String> {
     )
 }
 
+object LongListColumnAdapter : ColumnAdapter<List<Long>, String> {
+    override fun decode(databaseValue: String) = if (databaseValue.isEmpty()) {
+        emptyList()
+    } else {
+        databaseValue.split(",").mapNotNull { it.trim().toLongOrNull() }
+    }
+
+    override fun encode(value: List<Long>) = value.joinToString(separator = ",")
+}
+
 object UpdateStrategyColumnAdapter : ColumnAdapter<UpdateStrategy, Long> {
     override fun decode(databaseValue: Long): UpdateStrategy =
         UpdateStrategy.entries.getOrElse(databaseValue.toInt()) { UpdateStrategy.ALWAYS_UPDATE }

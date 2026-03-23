@@ -35,6 +35,18 @@ class CategoryRepositoryImpl(
         }
     }
 
+    override suspend fun getCategoriesByAnimeId(animeId: Long): List<Category> {
+        return handler.awaitList {
+            categoriesQueries.getCategoriesByAnimeId(animeId, ::mapCategory)
+        }
+    }
+
+    override fun getCategoriesByAnimeIdAsFlow(animeId: Long): Flow<List<Category>> {
+        return handler.subscribeToList {
+            categoriesQueries.getCategoriesByAnimeId(animeId, ::mapCategory)
+        }
+    }
+
     override suspend fun insert(category: Category) {
         handler.await {
             categoriesQueries.insert(

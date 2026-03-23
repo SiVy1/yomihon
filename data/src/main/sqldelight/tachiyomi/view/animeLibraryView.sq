@@ -17,6 +17,7 @@ SELECT
     animes.favorite_modified_at AS favoriteModifiedAt,
     animes.version,
     animes.anilist_id AS aniListId,
+    coalesce(animeCategories.categories, '') AS categories,
     coalesce(animeEpisodeStats.totalCount, 0) AS totalCount,
     coalesce(animeEpisodeStats.seenCount, 0) AS seenCount,
     coalesce(animeEpisodeStats.bookmarkCount, 0) AS bookmarkCount,
@@ -24,6 +25,14 @@ SELECT
     coalesce(animeEpisodeStats.episodeFetchedAt, 0) AS episodeFetchedAt,
     coalesce(animeEpisodeStats.lastWatched, 0) AS lastWatched
 FROM animes
+LEFT JOIN (
+    SELECT
+        anime_id,
+        group_concat(category_id) AS categories
+    FROM animes_categories
+    GROUP BY anime_id
+) AS animeCategories
+ON animes._id = animeCategories.anime_id
 LEFT JOIN (
     SELECT
         animeEpisodes.anime_id,

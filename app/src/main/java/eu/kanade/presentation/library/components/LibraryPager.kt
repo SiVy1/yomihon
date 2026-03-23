@@ -22,7 +22,6 @@ import eu.kanade.core.preference.PreferenceMutableState
 import eu.kanade.tachiyomi.ui.library.LibraryItem
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.library.model.LibraryDisplayMode
-import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.util.plus
@@ -39,9 +38,9 @@ fun LibraryPager(
     getDisplayMode: (Int) -> PreferenceMutableState<LibraryDisplayMode>,
     getColumnsForOrientation: (Boolean) -> PreferenceMutableState<Int>,
     getItemsForCategory: (Category) -> List<LibraryItem>,
-    onClickManga: (Category, LibraryManga) -> Unit,
-    onLongClickManga: (Category, LibraryManga) -> Unit,
-    onClickContinueReading: ((LibraryManga) -> Unit)?,
+    onClickManga: (Category, LibraryItem) -> Unit,
+    onLongClickManga: (Category, LibraryItem) -> Unit,
+    onClickContinueReading: ((LibraryItem) -> Unit)?,
 ) {
     HorizontalPager(
         modifier = Modifier.fillMaxSize(),
@@ -75,8 +74,8 @@ fun LibraryPager(
             remember { mutableIntStateOf(0) }
         }
 
-        val onClickManga: (LibraryManga) -> Unit = { onClickManga(category, it) }
-        val onLongClickManga: (LibraryManga) -> Unit = { onLongClickManga(category, it) }
+        val onClickManga: (LibraryItem) -> Unit = { onClickManga(category, it) }
+        val onLongClickManga: (LibraryItem) -> Unit = { onLongClickManga(category, it) }
 
         when (displayMode) {
             LibraryDisplayMode.List -> {

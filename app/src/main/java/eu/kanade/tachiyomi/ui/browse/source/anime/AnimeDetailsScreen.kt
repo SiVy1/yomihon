@@ -1,31 +1,28 @@
 package eu.kanade.tachiyomi.ui.browse.source.anime
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Bookmark
-import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.PlayCircle
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SmallExtendedFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.animateFloatingActionButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -33,31 +30,44 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import coil3.compose.AsyncImage
+import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.components.AppBar
-import eu.kanade.presentation.util.rememberResourceBitmapPainter
+import eu.kanade.presentation.components.relativeDateText
+import eu.kanade.presentation.manga.components.ChapterHeader
+import eu.kanade.presentation.manga.components.ExpandableMangaDescription
+import eu.kanade.presentation.manga.components.MangaChapterListItem
+import eu.kanade.presentation.manga.components.MangaInfoBox
 import eu.kanade.presentation.util.Screen
-import eu.kanade.presentation.util.relativeTimeSpanString
-import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.data.download.model.Download
+import eu.kanade.tachiyomi.source.getNameForMangaInfo
 import eu.kanade.tachiyomi.source.model.SAnime
 import eu.kanade.tachiyomi.source.model.SEpisode
 import eu.kanade.tachiyomi.source.model.TorrentDescriptor
+import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.anime.player.AnimePlaybackRequest
 import eu.kanade.tachiyomi.ui.anime.player.AnimePlayerActivity
+import eu.kanade.tachiyomi.ui.webview.WebViewScreen
+import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import tachiyomi.domain.anime.model.Anime
 import tachiyomi.domain.anime.model.Episode
+import tachiyomi.domain.library.service.LibraryPreferences
+import tachiyomi.domain.manga.model.Manga
 import tachiyomi.presentation.core.components.material.Scaffold
+import tachiyomi.presentation.core.components.material.TextButton
 import tachiyomi.presentation.core.components.material.padding
+import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
+import tachiyomi.presentation.core.util.shouldExpandFAB
 import tachiyomi.presentation.core.util.plus
+import tachiyomi.i18n.MR
 
 data class AnimeDetailsScreen(
     val sourceId: Long,
@@ -70,7 +80,22 @@ data class AnimeDetailsScreen(
         val state by screenModel.state.collectAsState()
         val navigator = LocalNavigator.currentOrThrow
         val snackbarHostState = remember { SnackbarHostState() }
-        val context = LocalContext.current
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val listState = rememberLazyListState()
+        val sourceName = remember(screenModel.source) { screenModel.source.getNameForMangaInfo() }
+        val pseudoManga = remember(state.anime, state.localAnime) {
+            state.asPseudoManga(sourceId = sourceId)
+        }
+        val continueEpisode = remember(state.episodes, state.localEpisodes) {
+            state.getContinueEpisode()
+        }
+        val hasResume = remember(continueEpisode, state.localEpisodes) {
+            continueEpisode?.let { episode ->
+                val localEpisode = state.localEpisodes[episode.url]
+                localEpisode != null && !localEpisode.seen && localEpisode.lastSecondsWatched > 0L
+            } == true
+        }
+        val isFabVisible = remember(state.episodes) { state.episodes.isNotEmpty() }
 
         LaunchedEffect(state.errorMessage) {
             state.errorMessage?.let {
@@ -87,6 +112,26 @@ data class AnimeDetailsScreen(
                 )
             },
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+            floatingActionButton = {
+                if (continueEpisode != null) {
+                    SmallExtendedFloatingActionButton(
+                        text = {
+                            Text(
+                                text = stringResource(
+                                    if (hasResume) MR.strings.action_resume else MR.strings.action_start,
+                                ),
+                            )
+                        },
+                        icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
+                        onClick = { screenModel.selectEpisode(continueEpisode) },
+                        expanded = listState.shouldExpandFAB(),
+                        modifier = Modifier.animateFloatingActionButton(
+                            visible = isFabVisible,
+                            alignment = Alignment.BottomEnd,
+                        ),
+                    )
+                }
+            },
         ) { paddingValues ->
             when {
                 state.isLoading -> LoadingScreen(Modifier.padding(paddingValues))
@@ -98,30 +143,67 @@ data class AnimeDetailsScreen(
                 }
                 else -> {
                     LazyColumn(
+                        state = listState,
                         contentPadding = paddingValues + PaddingValues(bottom = MaterialTheme.padding.medium),
                     ) {
                         item {
-                            AnimeHeader(
-                                anime = state.anime,
-                                localAnime = state.localAnime,
-                                onToggleLibrary = screenModel::toggleLibrary,
+                            MangaInfoBox(
+                                isTabletUi = false,
+                                appBarPadding = paddingValues.calculateTopPadding(),
+                                manga = pseudoManga,
+                                sourceName = sourceName,
+                                isStubSource = false,
+                                onCoverClick = {},
+                                doSearch = { _, _ -> },
                             )
                         }
 
                         item {
-                            HorizontalDivider()
-                            Text(
-                                text = "Episodes",
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(MaterialTheme.padding.medium),
+                            AnimeActionRow(
+                                favorite = state.localAnime?.favorite == true,
+                                hasResume = hasResume,
+                                onToggleLibrary = screenModel::toggleLibrary,
+                                onContinueWatching = continueEpisode?.let { { screenModel.selectEpisode(it) } },
+                                onOpenWebView = (screenModel.source as? HttpSource)?.let { source ->
+                                    {
+                                        navigator.push(
+                                            WebViewScreen(
+                                                url = source.baseUrl,
+                                                initialTitle = source.name,
+                                                sourceId = source.id,
+                                            ),
+                                        )
+                                    }
+                                },
+                            )
+                        }
+
+                        item {
+                            ExpandableMangaDescription(
+                                defaultExpandState = true,
+                                description = state.anime.description,
+                                tagsProvider = { state.anime.getGenres() },
+                                notes = "",
+                                onTagSearch = {},
+                                onCopyTagToClipboard = { context.copyToClipboard(it, it) },
+                                onEditNotes = {},
+                            )
+                        }
+
+                        item {
+                            ChapterHeader(
+                                enabled = false,
+                                chapterCount = state.episodes.size,
+                                missingChapterCount = 0,
+                                onClick = {},
                             )
                         }
 
                         items(
                             items = state.episodes,
-                            key = { it.url },
+                            key = { episode -> episode.url },
                         ) { episode ->
-                            EpisodeItem(
+                            EpisodeListItem(
                                 episode = episode,
                                 localEpisode = state.localEpisodes[episode.url],
                                 isResolving = state.resolvingEpisodeUrl == episode.url,
@@ -136,6 +218,17 @@ data class AnimeDetailsScreen(
         }
 
         when (val dialog = state.dialog) {
+            is AnimeDetailsScreenModel.Dialog.ChangeCategory -> {
+                ChangeCategoryDialog(
+                    initialSelection = dialog.initialSelection,
+                    onDismissRequest = { screenModel.setDialog(null) },
+                    onEditCategories = { navigator.push(CategoryScreen()) },
+                    onConfirm = { include, _ ->
+                        screenModel.moveAnimeToCategoriesAndAddToLibrary(dialog.anime, include)
+                        screenModel.setDialog(null)
+                    },
+                )
+            }
             is AnimeDetailsScreenModel.Dialog.TorrentOptions -> {
                 TorrentOptionsDialog(
                     episode = dialog.episode,
@@ -167,68 +260,75 @@ data class AnimeDetailsScreen(
 }
 
 @Composable
-private fun AnimeHeader(
-    anime: SAnime,
-    localAnime: Anime?,
+private fun AnimeActionRow(
+    favorite: Boolean,
+    hasResume: Boolean,
     onToggleLibrary: () -> Unit,
+    onContinueWatching: (() -> Unit)?,
+    onOpenWebView: (() -> Unit)?,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(MaterialTheme.padding.medium),
-        verticalAlignment = Alignment.Top,
-    ) {
-        AsyncImage(
-            model = anime.thumbnail_url,
-            contentDescription = anime.title,
-            error = rememberResourceBitmapPainter(id = R.drawable.cover_error),
-            modifier = Modifier
-                .size(width = 108.dp, height = 156.dp)
-                .clip(MaterialTheme.shapes.medium),
-        )
+    val defaultActionButtonColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
 
-        Column(
-            modifier = Modifier
-                .padding(start = MaterialTheme.padding.medium)
-                .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = anime.title,
-                style = MaterialTheme.typography.headlineSmall,
+    Row(modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp)) {
+        AnimeActionButton(
+            title = if (favorite) {
+                stringResource(MR.strings.in_library)
+            } else {
+                stringResource(MR.strings.add_to_library)
+            },
+            icon = if (favorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+            color = if (favorite) MaterialTheme.colorScheme.primary else defaultActionButtonColor,
+            onClick = onToggleLibrary,
+        )
+        AnimeActionButton(
+            title = stringResource(
+                if (hasResume) MR.strings.action_resume else MR.strings.action_start,
+            ),
+            icon = Icons.Filled.PlayArrow,
+            color = if (onContinueWatching != null) MaterialTheme.colorScheme.primary else defaultActionButtonColor,
+            onClick = { onContinueWatching?.invoke() },
+        )
+        if (onOpenWebView != null) {
+            AnimeActionButton(
+                title = stringResource(MR.strings.action_web_view),
+                icon = Icons.Outlined.Public,
+                color = defaultActionButtonColor,
+                onClick = onOpenWebView,
             )
-            anime.genre?.takeIf { it.isNotBlank() }?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            anime.description?.takeIf { it.isNotBlank() }?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            FilledTonalButton(
-                onClick = onToggleLibrary,
-                enabled = true,
-            ) {
-                Text(
-                    text = if (localAnime?.favorite == true) {
-                        "Remove from library"
-                    } else {
-                        "Add to library"
-                    },
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun EpisodeItem(
+private fun RowScope.AnimeActionButton(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    onClick: () -> Unit,
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.weight(1f),
+    ) {
+        androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.padding(bottom = 4.dp),
+            )
+            Text(
+                text = title,
+                color = color,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun EpisodeListItem(
     episode: SEpisode,
     localEpisode: Episode?,
     isResolving: Boolean,
@@ -236,99 +336,36 @@ private fun EpisodeItem(
     onToggleSeen: () -> Unit,
     onToggleBookmark: () -> Unit,
 ) {
-    val relativeDate = if (episode.date_upload > 0L) {
-        relativeTimeSpanString(episode.date_upload)
-    } else {
-        null
-    }
-
-    val metadata = buildList {
-        if (episode.episode_number >= 0f) add("Ep ${episode.episode_number}")
-        episode.release_group?.let(::add)
-        relativeDate?.let(::add)
-        val watchedSeconds = localEpisode?.lastSecondsWatched ?: 0L
-        if (watchedSeconds > 0L && localEpisode?.seen != true) {
-            add("Resume ${watchedSeconds}s")
-        }
-    }.joinToString(" - ")
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = MaterialTheme.padding.medium, vertical = MaterialTheme.padding.small),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.PlayCircle,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = episode.name,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(onClick = onToggleSeen) {
-                Icon(
-                    imageVector = if (localEpisode?.seen == true) {
-                        Icons.Outlined.Visibility
-                    } else {
-                        Icons.Outlined.VisibilityOff
-                    },
-                    contentDescription = if (localEpisode?.seen == true) {
-                        "Mark unseen"
-                    } else {
-                        "Mark seen"
-                    },
-                    tint = if (localEpisode?.seen == true) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-            }
-            IconButton(onClick = onToggleBookmark) {
-                Icon(
-                    imageVector = if (localEpisode?.bookmark == true) {
-                        Icons.Outlined.Bookmark
-                    } else {
-                        Icons.Outlined.BookmarkBorder
-                    },
-                    contentDescription = if (localEpisode?.bookmark == true) {
-                        "Remove bookmark"
-                    } else {
-                        "Bookmark episode"
-                    },
-                    tint = if (localEpisode?.bookmark == true) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-            }
+    MangaChapterListItem(
+        title = episode.name,
+        date = relativeDateText(episode.date_upload),
+        readProgress = localEpisode.asEpisodeProgressText(),
+        scanlator = buildString {
+            episode.release_group?.takeIf { it.isNotBlank() }?.let { append(it) }
             if (isResolving) {
-                Text(
-                    text = "Resolving...",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                if (isNotBlank()) append(" • ")
+                append("Resolving...")
             }
-        }
-
-        if (metadata.isNotBlank()) {
-            Text(
-                text = metadata,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+        }.takeIf { it.isNotBlank() },
+        read = localEpisode?.seen == true,
+        bookmark = localEpisode?.bookmark == true,
+        selected = false,
+        downloadIndicatorEnabled = false,
+        downloadStateProvider = { Download.State.NOT_DOWNLOADED },
+        downloadProgressProvider = { 0 },
+        chapterSwipeStartAction = LibraryPreferences.ChapterSwipeAction.ToggleRead,
+        chapterSwipeEndAction = LibraryPreferences.ChapterSwipeAction.ToggleBookmark,
+        onLongClick = onToggleBookmark,
+        onClick = onClick,
+        onDownloadClick = null,
+        onChapterSwipe = { action ->
+            when (action) {
+                LibraryPreferences.ChapterSwipeAction.ToggleRead -> onToggleSeen()
+                LibraryPreferences.ChapterSwipeAction.ToggleBookmark -> onToggleBookmark()
+                else -> Unit
+            }
+        },
+    )
 }
 
 @Composable
@@ -340,29 +377,26 @@ private fun TorrentOptionsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = {
-            Text(text = episode.name)
-        },
+        title = { Text(text = episode.name) },
         text = {
             if (descriptors.isEmpty()) {
                 Text("No torrent options were returned by this extension.")
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small)) {
+                androidx.compose.foundation.layout.Column(
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
+                ) {
                     descriptors.forEach { descriptor ->
-                        Column(
+                        androidx.compose.foundation.layout.Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    onSelectDescriptor(descriptor)
-                                    onDismissRequest()
-                                }
+                                .clickable { onSelectDescriptor(descriptor) }
                                 .padding(vertical = MaterialTheme.padding.small),
                         ) {
                             Text(
                                 text = buildString {
                                     append(descriptor.quality ?: "Torrent")
-                                    descriptor.seeders?.let { append(" - $it seeders") }
-                                    descriptor.leechers?.let { append(" - $it leechers") }
+                                    descriptor.seeders?.let { append(" • $it seeders") }
+                                    descriptor.leechers?.let { append(" • $it leechers") }
                                 },
                                 style = MaterialTheme.typography.bodyLarge,
                             )
@@ -380,11 +414,6 @@ private fun TorrentOptionsDialog(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Text(
-                                text = "Tap to play in app",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
                         }
                     }
                 }
@@ -396,4 +425,49 @@ private fun TorrentOptionsDialog(
             }
         },
     )
+}
+
+private fun AnimeDetailsScreenModel.State.asPseudoManga(sourceId: Long): Manga {
+    val localAnime = localAnime
+    return Manga.create().copy(
+        id = localAnime?.id ?: -1L,
+        source = localAnime?.source ?: sourceId,
+        favorite = localAnime?.favorite == true,
+        dateAdded = localAnime?.dateAdded ?: 0L,
+        coverLastModified = localAnime?.lastModifiedAt ?: 0L,
+        url = anime.url,
+        title = anime.title,
+        artist = anime.artist ?: localAnime?.artist,
+        author = anime.author ?: localAnime?.author,
+        description = anime.description ?: localAnime?.description,
+        genre = anime.getGenres() ?: localAnime?.genre,
+        status = anime.status.toLong(),
+        thumbnailUrl = anime.thumbnail_url ?: localAnime?.thumbnailUrl,
+        initialized = anime.initialized,
+        lastModifiedAt = localAnime?.lastModifiedAt ?: 0L,
+        favoriteModifiedAt = localAnime?.favoriteModifiedAt,
+        version = localAnime?.version ?: 0L,
+    )
+}
+
+private fun AnimeDetailsScreenModel.State.getContinueEpisode(): SEpisode? {
+    return episodes.firstOrNull { episode ->
+        val localEpisode = localEpisodes[episode.url]
+        localEpisode != null && !localEpisode.seen && localEpisode.lastSecondsWatched > 0L
+    } ?: episodes.firstOrNull { episode ->
+        localEpisodes[episode.url]?.seen != true
+    } ?: episodes.firstOrNull()
+}
+
+private fun Episode?.asEpisodeProgressText(): String? {
+    if (this == null || seen) return null
+    if (totalSeconds > 0L && lastSecondsWatched > 0L) {
+        val percent = ((lastSecondsWatched.toDouble() / totalSeconds.toDouble()) * 100.0)
+            .toInt()
+            .coerceIn(0, 100)
+        return "$percent%"
+    }
+    return lastSecondsWatched
+        .takeIf { it > 0L }
+        ?.let { "${it}s" }
 }

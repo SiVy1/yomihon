@@ -65,6 +65,7 @@ data class AnimePlayerState(
     val phase: TorrentPlaybackPhase = TorrentPlaybackPhase.AwaitingBackend,
     val playbackUrl: String? = null,
     val isPlaying: Boolean = false,
+    val playbackSpeed: Float = 1f,
     val isBuffering: Boolean = false,
     val isLoading: Boolean = true,
     val positionMs: Long = 0L,

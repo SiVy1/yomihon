@@ -54,6 +54,15 @@ class AnimeRepositoryImpl(
         }
     }
 
+    override suspend fun setAnimeCategories(animeId: Long, categoryIds: List<Long>) {
+        handler.await(inTransaction = true) {
+            animes_categoriesQueries.deleteAnimeCategoryByAnimeId(animeId)
+            categoryIds.distinct().forEach { categoryId ->
+                animes_categoriesQueries.insert(animeId, categoryId)
+            }
+        }
+    }
+
     override suspend fun update(update: AnimeUpdate): Boolean {
         return try {
             handler.await {

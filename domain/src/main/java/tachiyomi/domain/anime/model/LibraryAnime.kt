@@ -2,6 +2,7 @@ package tachiyomi.domain.anime.model
 
 data class LibraryAnime(
     val anime: Anime,
+    val categories: List<Long>,
     val totalEpisodes: Long,
     val seenCount: Long,
     val bookmarkCount: Long,

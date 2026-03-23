@@ -12,7 +12,11 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import mihon.domain.anime.model.toDomainAnime
 import mihon.domain.anime.model.toDomainEpisode
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import tachiyomi.core.common.util.lang.launchIO
+import tachiyomi.core.common.preference.CheckboxState
+import tachiyomi.core.common.preference.mapAsCheckboxState
 import tachiyomi.domain.anime.interactor.GetAnimeByUrlAndSourceId
 import tachiyomi.domain.anime.interactor.NetworkToLocalAnime
 import tachiyomi.domain.anime.interactor.UpdateAnime
@@ -23,6 +27,10 @@ import tachiyomi.domain.anime.model.Episode
 import tachiyomi.domain.anime.model.EpisodeUpdate
 import tachiyomi.domain.anime.interactor.UpsertAnimeHistory
 import tachiyomi.domain.anime.repository.EpisodeRepository
+import tachiyomi.domain.category.interactor.GetCategories
+import tachiyomi.domain.category.interactor.SetAnimeCategories
+import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -36,6 +44,9 @@ class AnimeDetailsScreenModel(
     private val updateAnime: UpdateAnime = Injekt.get(),
     private val upsertAnimeHistory: UpsertAnimeHistory = Injekt.get(),
     private val episodeRepository: EpisodeRepository = Injekt.get(),
+    private val getCategories: GetCategories = Injekt.get(),
+    private val setAnimeCategories: SetAnimeCategories = Injekt.get(),
+    private val libraryPreferences: LibraryPreferences = Injekt.get(),
 ) : StateScreenModel<AnimeDetailsScreenModel.State>(
     State(
         anime = initialAnime,
@@ -122,21 +133,77 @@ class AnimeDetailsScreenModel(
         val shouldFavorite = !localAnime.favorite
 
         screenModelScope.launchIO {
-            val success = updateAnime.await(
-                AnimeUpdate(
-                    id = localAnime.id,
-                    favorite = shouldFavorite,
-                    dateAdded = when {
-                        shouldFavorite && localAnime.dateAdded == 0L -> System.currentTimeMillis()
-                        else -> localAnime.dateAdded
-                    },
-                ),
-            )
+            val success = when {
+                shouldFavorite -> addAnimeToLibrary(localAnime)
+                else -> updateAnime.await(
+                    AnimeUpdate(
+                        id = localAnime.id,
+                        favorite = false,
+                        dateAdded = localAnime.dateAdded,
+                    ),
+                )
+            }
 
             if (!success) {
                 mutableState.update {
                     it.copy(errorMessage = "Failed to update library state.")
                 }
+            }
+        }
+    }
+
+    private suspend fun addAnimeToLibrary(localAnime: Anime): Boolean {
+        val categories = getCategories.await().filterNot(Category::isSystemCategory)
+        val defaultCategoryId = libraryPreferences.defaultCategory.get().toLong()
+        val defaultCategory = categories.find { it.id == defaultCategoryId }
+
+        return when {
+            defaultCategory != null -> {
+                setAnimeCategories.await(localAnime.id, listOf(defaultCategory.id))
+                updateAnime.await(
+                    AnimeUpdate(
+                        id = localAnime.id,
+                        favorite = true,
+                        dateAdded = if (localAnime.dateAdded == 0L) System.currentTimeMillis() else localAnime.dateAdded,
+                    ),
+                )
+            }
+            defaultCategoryId == 0L || categories.isEmpty() -> {
+                setAnimeCategories.await(localAnime.id, emptyList())
+                updateAnime.await(
+                    AnimeUpdate(
+                        id = localAnime.id,
+                        favorite = true,
+                        dateAdded = if (localAnime.dateAdded == 0L) System.currentTimeMillis() else localAnime.dateAdded,
+                    ),
+                )
+            }
+            else -> {
+                mutableState.update {
+                    it.copy(
+                        dialog = Dialog.ChangeCategory(
+                            anime = localAnime,
+                            initialSelection = categories.mapAsCheckboxState { false }.toImmutableList(),
+                        ),
+                    )
+                }
+                true
+            }
+        }
+    }
+
+    fun moveAnimeToCategoriesAndAddToLibrary(anime: Anime, categoryIds: List<Long>) {
+        screenModelScope.launchIO {
+            setAnimeCategories.await(anime.id, categoryIds)
+            val success = updateAnime.await(
+                AnimeUpdate(
+                    id = anime.id,
+                    favorite = true,
+                    dateAdded = if (anime.dateAdded == 0L) System.currentTimeMillis() else anime.dateAdded,
+                ),
+            )
+            if (!success) {
+                mutableState.update { it.copy(errorMessage = "Failed to update library state.") }
             }
         }
     }
@@ -222,6 +289,11 @@ class AnimeDetailsScreenModel(
     }
 
     sealed interface Dialog {
+        data class ChangeCategory(
+            val anime: Anime,
+            val initialSelection: ImmutableList<CheckboxState<Category>>,
+        ) : Dialog
+
         data class TorrentOptions(
             val episode: SEpisode,
             val descriptors: List<TorrentDescriptor>,
