@@ -1,0 +1,37 @@
+CREATE TABLE animeHistory(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    episode_id INTEGER NOT NULL UNIQUE,
+    last_watched INTEGER,
+    watch_duration INTEGER NOT NULL,
+    FOREIGN KEY(episode_id) REFERENCES animeEpisodes (_id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX animeHistory_episode_id_index ON animeHistory(episode_id);
+CREATE INDEX idx_animeHistory_last_watched ON animeHistory(last_watched);
+
+getHistoryByAnimeId:
+SELECT
+animeHistory._id,
+animeHistory.episode_id,
+animeHistory.last_watched,
+animeHistory.watch_duration
+FROM animeHistory
+JOIN animeEpisodes
+ON animeHistory.episode_id = animeEpisodes._id
+WHERE animeEpisodes.anime_id = :animeId
+AND animeEpisodes._id = animeHistory.episode_id;
+
+upsert:
+INSERT INTO animeHistory(episode_id, last_watched, watch_duration)
+VALUES (:episodeId, :watchedAt, :watchDuration)
+ON CONFLICT(episode_id)
+DO UPDATE
+SET
+    last_watched = :watchedAt,
+    watch_duration = watch_duration + :watchDuration
+WHERE episode_id = :episodeId;
+
+getWatchDuration:
+SELECT coalesce(sum(watch_duration), 0)
+FROM animeHistory;

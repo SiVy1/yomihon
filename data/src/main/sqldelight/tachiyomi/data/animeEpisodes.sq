@@ -1,0 +1,81 @@
+import kotlin.Boolean;
+
+CREATE TABLE animeEpisodes(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    anime_id INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    name TEXT NOT NULL,
+    release_group TEXT,
+    seen INTEGER AS Boolean NOT NULL,
+    bookmark INTEGER AS Boolean NOT NULL,
+    last_seconds_watched INTEGER NOT NULL DEFAULT 0,
+    total_seconds INTEGER NOT NULL DEFAULT 0,
+    episode_number REAL NOT NULL,
+    season_number INTEGER NOT NULL DEFAULT -1,
+    source_order INTEGER NOT NULL,
+    date_fetch INTEGER NOT NULL,
+    date_upload INTEGER NOT NULL,
+    last_modified_at INTEGER NOT NULL DEFAULT 0,
+    version INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY(anime_id) REFERENCES animes (_id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX animeEpisodes_anime_id_index ON animeEpisodes(anime_id);
+CREATE INDEX animeEpisodes_unseen_by_anime_index ON animeEpisodes(anime_id, seen) WHERE seen = 0;
+CREATE INDEX idx_animeEpisodes_url ON animeEpisodes(url);
+
+CREATE TRIGGER update_last_modified_at_animeEpisodes
+AFTER UPDATE ON animeEpisodes
+FOR EACH ROW
+BEGIN
+  UPDATE animeEpisodes
+  SET last_modified_at = strftime('%s', 'now')
+  WHERE _id = new._id;
+END;
+
+getEpisodeById:
+SELECT *
+FROM animeEpisodes
+WHERE _id = :id;
+
+getEpisodesByAnimeId:
+SELECT *
+FROM animeEpisodes
+WHERE anime_id = :animeId
+ORDER BY source_order ASC;
+
+getEpisodeByUrlAndAnimeId:
+SELECT *
+FROM animeEpisodes
+WHERE url = :episodeUrl
+AND anime_id = :animeId;
+
+insert:
+INSERT INTO animeEpisodes(anime_id, url, name, release_group, seen, bookmark, last_seconds_watched, total_seconds, episode_number, season_number, source_order, date_fetch, date_upload, last_modified_at, version)
+VALUES (:animeId, :url, :name, :releaseGroup, :seen, :bookmark, :lastSecondsWatched, :totalSeconds, :episodeNumber, :seasonNumber, :sourceOrder, :dateFetch, :dateUpload, 0, :version);
+
+update:
+UPDATE animeEpisodes
+SET anime_id = coalesce(:animeId, anime_id),
+    url = coalesce(:url, url),
+    name = coalesce(:name, name),
+    release_group = coalesce(:releaseGroup, release_group),
+    seen = coalesce(:seen, seen),
+    bookmark = coalesce(:bookmark, bookmark),
+    last_seconds_watched = coalesce(:lastSecondsWatched, last_seconds_watched),
+    total_seconds = coalesce(:totalSeconds, total_seconds),
+    episode_number = coalesce(:episodeNumber, episode_number),
+    season_number = coalesce(:seasonNumber, season_number),
+    source_order = coalesce(:sourceOrder, source_order),
+    date_fetch = coalesce(:dateFetch, date_fetch),
+    date_upload = coalesce(:dateUpload, date_upload),
+    version = coalesce(:version, version)
+WHERE _id = :episodeId;
+
+removeEpisodesWithIds:
+DELETE FROM animeEpisodes
+WHERE _id IN :episodeIds;
+
+selectLastInsertedRowId:
+SELECT last_insert_rowid();

@@ -1,0 +1,20 @@
+package tachiyomi.domain.anime.repository
+
+import kotlinx.coroutines.flow.Flow
+import tachiyomi.domain.anime.model.Anime
+import tachiyomi.domain.anime.model.AnimeUpdate
+
+interface AnimeRepository {
+
+    suspend fun getAnimeById(id: Long): Anime?
+
+    fun getAnimeByIdAsFlow(id: Long): Flow<Anime?>
+
+    suspend fun getAnimeByUrlAndSourceId(url: String, sourceId: Long): Anime?
+
+    fun getAnimeByUrlAndSourceIdAsFlow(url: String, sourceId: Long): Flow<Anime?>
+
+    suspend fun update(update: AnimeUpdate): Boolean
+
+    suspend fun insertNetworkAnime(anime: List<Anime>): List<Anime>
+}

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +49,7 @@ import eu.kanade.tachiyomi.source.model.SEpisode
 import eu.kanade.tachiyomi.source.model.TorrentDescriptor
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.openInBrowser
+import tachiyomi.domain.anime.model.Anime
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.screens.EmptyScreen
@@ -94,7 +96,11 @@ data class AnimeDetailsScreen(
                         contentPadding = paddingValues + PaddingValues(bottom = MaterialTheme.padding.medium),
                     ) {
                         item {
-                            AnimeHeader(anime = state.anime)
+                            AnimeHeader(
+                                anime = state.anime,
+                                localAnime = state.localAnime,
+                                onToggleLibrary = screenModel::toggleLibrary,
+                            )
                         }
 
                         item {
@@ -135,7 +141,11 @@ data class AnimeDetailsScreen(
 }
 
 @Composable
-private fun AnimeHeader(anime: SAnime) {
+private fun AnimeHeader(
+    anime: SAnime,
+    localAnime: Anime?,
+    onToggleLibrary: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -173,6 +183,18 @@ private fun AnimeHeader(anime: SAnime) {
                     text = it,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            FilledTonalButton(
+                onClick = onToggleLibrary,
+                enabled = localAnime != null,
+            ) {
+                Text(
+                    text = if (localAnime?.favorite == true) {
+                        "Remove from library"
+                    } else {
+                        "Add to library"
+                    },
                 )
             }
         }

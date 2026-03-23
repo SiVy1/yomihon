@@ -1,0 +1,122 @@
+import kotlin.Boolean;
+
+CREATE TABLE animes(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    source INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    artist TEXT,
+    author TEXT,
+    description TEXT,
+    genre TEXT,
+    title TEXT NOT NULL,
+    status INTEGER NOT NULL,
+    thumbnail_url TEXT,
+    favorite INTEGER AS Boolean NOT NULL,
+    initialized INTEGER AS Boolean NOT NULL,
+    date_added INTEGER NOT NULL,
+    last_modified_at INTEGER NOT NULL DEFAULT 0,
+    favorite_modified_at INTEGER,
+    version INTEGER NOT NULL DEFAULT 0,
+    anilist_id INTEGER
+);
+
+CREATE INDEX animes_favorite_index ON animes(favorite) WHERE favorite = 1;
+CREATE INDEX animes_url_source_index ON animes(url, source);
+CREATE INDEX idx_animes_source ON animes(source);
+CREATE INDEX idx_animes_anilist_id ON animes(anilist_id);
+
+CREATE TRIGGER update_last_favorited_at_animes
+AFTER UPDATE OF favorite ON animes
+BEGIN
+  UPDATE animes
+  SET favorite_modified_at = strftime('%s', 'now')
+  WHERE _id = new._id;
+END;
+
+CREATE TRIGGER update_last_modified_at_animes
+AFTER UPDATE ON animes
+FOR EACH ROW
+BEGIN
+  UPDATE animes
+  SET last_modified_at = strftime('%s', 'now')
+  WHERE _id = new._id;
+END;
+
+getAnimeById:
+SELECT *
+FROM animes
+WHERE _id = :id;
+
+getAnimeByUrlAndSource:
+SELECT *
+FROM animes
+WHERE url = :url
+AND source = :source
+LIMIT 1;
+
+getFavorites:
+SELECT *
+FROM animes
+WHERE favorite = 1;
+
+getFavoriteBySourceId:
+SELECT *
+FROM animes
+WHERE favorite = 1
+AND source = :sourceId;
+
+insert:
+INSERT INTO animes(source, url, artist, author, description, genre, title, status, thumbnail_url, favorite, initialized, date_added, last_modified_at, version, anilist_id)
+VALUES (:source, :url, :artist, :author, :description, :genre, :title, :status, :thumbnailUrl, :favorite, :initialized, :dateAdded, 0, :version, :aniListId);
+
+update:
+UPDATE animes SET
+    source = coalesce(:source, source),
+    url = coalesce(:url, url),
+    artist = coalesce(:artist, artist),
+    author = coalesce(:author, author),
+    description = coalesce(:description, description),
+    genre = coalesce(:genre, genre),
+    title = coalesce(:title, title),
+    status = coalesce(:status, status),
+    thumbnail_url = coalesce(:thumbnailUrl, thumbnail_url),
+    favorite = coalesce(:favorite, favorite),
+    initialized = coalesce(:initialized, initialized),
+    date_added = coalesce(:dateAdded, date_added),
+    version = coalesce(:version, version),
+    anilist_id = coalesce(:aniListId, anilist_id)
+WHERE _id = :animeId;
+
+selectLastInsertedRowId:
+SELECT last_insert_rowid();
+
+insertNetworkAnime {
+    INSERT INTO animes(
+        source, url, artist, author, description, genre, title, status, thumbnail_url, favorite,
+        initialized, date_added, last_modified_at, version, anilist_id
+    )
+    SELECT
+        :source, :url, :artist, :author, :description, :genre, :title, :status, :thumbnailUrl, :favorite,
+        :initialized, :dateAdded, 0, :version, :aniListId
+    WHERE NOT EXISTS(SELECT 0 FROM animes WHERE source = :source AND url = :url);
+
+    UPDATE animes
+    SET
+        title = CASE WHEN :updateTitle THEN :title ELSE title END,
+        thumbnail_url = CASE WHEN :updateCover THEN :thumbnailUrl ELSE thumbnail_url END,
+        author = CASE WHEN :updateDetails THEN :author ELSE author END,
+        artist = CASE WHEN :updateDetails THEN :artist ELSE artist END,
+        description = CASE WHEN :updateDetails THEN :description ELSE description END,
+        genre = CASE WHEN :updateDetails THEN :genre ELSE genre END,
+        status = CASE WHEN :updateDetails THEN :status ELSE status END,
+        initialized = :updateDetails,
+        anilist_id = CASE WHEN :updateAniListId THEN :aniListId ELSE anilist_id END
+    WHERE source = :source
+    AND url = :url;
+
+    SELECT *
+    FROM animes
+    WHERE source = :source
+    AND url = :url
+    LIMIT 1;
+}

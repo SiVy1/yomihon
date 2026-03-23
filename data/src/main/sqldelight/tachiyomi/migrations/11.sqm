@@ -1,0 +1,87 @@
+CREATE TABLE IF NOT EXISTS animes(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    source INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    artist TEXT,
+    author TEXT,
+    description TEXT,
+    genre TEXT,
+    title TEXT NOT NULL,
+    status INTEGER NOT NULL,
+    thumbnail_url TEXT,
+    favorite INTEGER NOT NULL,
+    initialized INTEGER NOT NULL,
+    date_added INTEGER NOT NULL,
+    last_modified_at INTEGER NOT NULL DEFAULT 0,
+    favorite_modified_at INTEGER,
+    version INTEGER NOT NULL DEFAULT 0,
+    anilist_id INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS animes_favorite_index ON animes(favorite) WHERE favorite = 1;
+CREATE INDEX IF NOT EXISTS animes_url_source_index ON animes(url, source);
+CREATE INDEX IF NOT EXISTS idx_animes_source ON animes(source);
+CREATE INDEX IF NOT EXISTS idx_animes_anilist_id ON animes(anilist_id);
+
+CREATE TRIGGER IF NOT EXISTS update_last_favorited_at_animes
+AFTER UPDATE OF favorite ON animes
+BEGIN
+  UPDATE animes
+  SET favorite_modified_at = strftime('%s', 'now')
+  WHERE _id = new._id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_last_modified_at_animes
+AFTER UPDATE ON animes
+FOR EACH ROW
+BEGIN
+  UPDATE animes
+  SET last_modified_at = strftime('%s', 'now')
+  WHERE _id = new._id;
+END;
+
+CREATE TABLE IF NOT EXISTS animeEpisodes(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    anime_id INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    name TEXT NOT NULL,
+    release_group TEXT,
+    seen INTEGER NOT NULL,
+    bookmark INTEGER NOT NULL,
+    last_seconds_watched INTEGER NOT NULL DEFAULT 0,
+    total_seconds INTEGER NOT NULL DEFAULT 0,
+    episode_number REAL NOT NULL,
+    season_number INTEGER NOT NULL DEFAULT -1,
+    source_order INTEGER NOT NULL,
+    date_fetch INTEGER NOT NULL,
+    date_upload INTEGER NOT NULL,
+    last_modified_at INTEGER NOT NULL DEFAULT 0,
+    version INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY(anime_id) REFERENCES animes (_id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS animeEpisodes_anime_id_index ON animeEpisodes(anime_id);
+CREATE INDEX IF NOT EXISTS animeEpisodes_unseen_by_anime_index ON animeEpisodes(anime_id, seen) WHERE seen = 0;
+CREATE INDEX IF NOT EXISTS idx_animeEpisodes_url ON animeEpisodes(url);
+
+CREATE TRIGGER IF NOT EXISTS update_last_modified_at_animeEpisodes
+AFTER UPDATE ON animeEpisodes
+FOR EACH ROW
+BEGIN
+  UPDATE animeEpisodes
+  SET last_modified_at = strftime('%s', 'now')
+  WHERE _id = new._id;
+END;
+
+CREATE TABLE IF NOT EXISTS animeHistory(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    episode_id INTEGER NOT NULL UNIQUE,
+    last_watched INTEGER,
+    watch_duration INTEGER NOT NULL,
+    FOREIGN KEY(episode_id) REFERENCES animeEpisodes (_id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS animeHistory_episode_id_index ON animeHistory(episode_id);
+CREATE INDEX IF NOT EXISTS idx_animeHistory_last_watched ON animeHistory(last_watched);

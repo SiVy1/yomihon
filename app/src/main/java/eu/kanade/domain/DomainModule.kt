@@ -1,8 +1,18 @@
 package eu.kanade.domain
-
 import eu.kanade.domain.chapter.interactor.GetAvailableScanlators
 import eu.kanade.domain.chapter.interactor.SetReadStatus
 import eu.kanade.domain.chapter.interactor.SyncChaptersWithSource
+import tachiyomi.data.anime.AnimeHistoryRepositoryImpl
+import tachiyomi.data.anime.AnimeRepositoryImpl
+import tachiyomi.data.anime.EpisodeRepositoryImpl
+import tachiyomi.domain.anime.interactor.GetAnimeByUrlAndSourceId
+import tachiyomi.domain.anime.interactor.GetEpisodesByAnimeId
+import tachiyomi.domain.anime.interactor.NetworkToLocalAnime
+import tachiyomi.domain.anime.interactor.UpdateAnime
+import tachiyomi.domain.anime.interactor.UpsertAnimeHistory
+import tachiyomi.domain.anime.repository.AnimeHistoryRepository
+import tachiyomi.domain.anime.repository.AnimeRepository
+import tachiyomi.domain.anime.repository.EpisodeRepository
 import eu.kanade.domain.download.interactor.DeleteDownload
 import eu.kanade.domain.extension.interactor.GetExtensionLanguages
 import eu.kanade.domain.extension.interactor.GetExtensionSources
@@ -106,6 +116,15 @@ import uy.kohesive.injekt.api.get
 class DomainModule : InjektModule {
 
     override fun InjektRegistrar.registerInjectables() {
+        addSingletonFactory<AnimeRepository> { AnimeRepositoryImpl(get()) }
+        addSingletonFactory<EpisodeRepository> { EpisodeRepositoryImpl(get()) }
+        addSingletonFactory<AnimeHistoryRepository> { AnimeHistoryRepositoryImpl(get()) }
+        addFactory { GetAnimeByUrlAndSourceId(get()) }
+        addFactory { GetEpisodesByAnimeId(get()) }
+        addFactory { NetworkToLocalAnime(get()) }
+        addFactory { UpdateAnime(get()) }
+        addFactory { UpsertAnimeHistory(get()) }
+
         addSingletonFactory<CategoryRepository> { CategoryRepositoryImpl(get()) }
         addFactory { GetCategories(get()) }
         addFactory { ResetCategoryFlags(get(), get()) }
