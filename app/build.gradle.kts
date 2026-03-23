@@ -36,6 +36,12 @@ android {
         buildConfigField("boolean", "UPDATER_ENABLED", "${Config.enableUpdater}")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        externalNativeBuild {
+            cmake {
+                cppFlags += "-std=c++20"
+            }
+        }
     }
 
     buildTypes {
@@ -145,6 +151,12 @@ android {
         abortOnError = false
         checkReleaseBuilds = false
     }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
+    }
 }
 
 kotlin {
@@ -226,6 +238,7 @@ dependencies {
 
     // Networking
     implementation(libs.bundles.okhttp)
+    implementation(libs.nanohttpd)
     implementation(libs.okio)
     implementation(libs.conscrypt) // TLS 1.3 support for Android < 10
 
@@ -273,6 +286,11 @@ dependencies {
 
     // Logging
     implementation(libs.logcat)
+    implementation(libs.frostwire.jlibtorrent)
+    implementation(libs.frostwire.jlibtorrent.android.arm)
+    implementation(libs.frostwire.jlibtorrent.android.arm64)
+    implementation(libs.frostwire.jlibtorrent.android.x86)
+    implementation(libs.frostwire.jlibtorrent.android.x8664)
 
     // Shizuku
     implementation(libs.bundles.shizuku)

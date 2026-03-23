@@ -4,6 +4,11 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
+        maven(url = "https://dl.frostwire.com/maven") {
+            content {
+                includeGroup("com.frostwire")
+            }
+        }
         maven(url = "https://www.jitpack.io")
     }
 }
@@ -18,6 +23,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven(url = "https://dl.frostwire.com/maven") {
+            content {
+                includeGroup("com.frostwire")
+            }
+        }
         maven(url = "https://www.jitpack.io")
     }
 }

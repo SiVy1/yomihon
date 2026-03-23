@@ -36,6 +36,7 @@ class TorrentFileSelector {
                     id = it.id,
                     label = it.path.substringAfterLast('/'),
                     language = it.path.substringAfterLast('.', "").takeIf { lang -> lang.length in 2..5 },
+                    mimeType = it.path.toSubtitleMimeType(),
                 )
             }
 
@@ -76,9 +77,17 @@ class TorrentFileSelector {
         return extension in SUBTITLE_EXTENSIONS
     }
 
+    private fun String.toSubtitleMimeType(): String? {
+        return when (substringAfterLast('.', "").lowercase()) {
+            "srt" -> "application/x-subrip"
+            "vtt" -> "text/vtt"
+            "ass", "ssa" -> "text/x-ssa"
+            else -> null
+        }
+    }
+
     private companion object {
         val VIDEO_EXTENSIONS = setOf("mkv", "mp4", "avi", "webm", "m4v", "ts")
         val SUBTITLE_EXTENSIONS = setOf("srt", "ass", "ssa", "vtt")
     }
 }
-

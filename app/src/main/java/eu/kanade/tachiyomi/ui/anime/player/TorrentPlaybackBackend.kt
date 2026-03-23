@@ -33,6 +33,9 @@ class NoopTorrentPlaybackBackend(
             fileNameHint = request.descriptor.fileNameHint,
             subtitleHint = request.descriptor.subtitleHint,
         )
+        val subtitleTracks = selection.availableSubtitleTracks.map { track ->
+            track.copy(uri = engineSession.subtitleTrackUrls[track.id] ?: track.uri)
+        }
         val snapshot = TorrentPlaybackSnapshot(
             phase = when {
                 selection.availableVideoFiles.isEmpty() -> TorrentPlaybackPhase.Error
@@ -40,23 +43,23 @@ class NoopTorrentPlaybackBackend(
                 else -> TorrentPlaybackPhase.AwaitingBackend
             },
             availableVideoFiles = selection.availableVideoFiles,
-            availableSubtitleTracks = selection.availableSubtitleTracks,
+            availableSubtitleTracks = subtitleTracks,
             selectedVideoFileId = selection.selectedVideoFileId,
             selectedSubtitleTrackId = selection.selectedSubtitleTrackId,
             proxyUrl = engineSession.proxyUrl,
             statusMessage = when {
                 selection.availableVideoFiles.isEmpty() -> {
-                    "No playable video files discovered yet. Native torrent metadata is still pending."
+                    "Metadata loaded, but no playable video file was found."
                 }
                 selection.selectedVideoFileId == null -> {
-                    "Choose a file to continue. Native torrent streaming integration is the next step."
+                    "Choose a file to start playback."
                 }
                 else -> {
-                    "Session prepared. Native torrent backend will provide the stream URL next."
+                    "Torrent session prepared. Select the file to start buffering."
                 }
             },
             errorMessage = if (selection.availableVideoFiles.isEmpty()) {
-                "The placeholder backend could not identify any playable video file."
+                "The torrent metadata does not contain a playable video file."
             } else {
                 null
             },
@@ -67,7 +70,11 @@ class NoopTorrentPlaybackBackend(
             discoveredFiles = discoveredFiles,
             snapshot = snapshot,
         )
-        return sessionStore.currentSnapshot()
+        return if (selection.selectedVideoFileId != null && engineSession.proxyUrl == null) {
+            selectVideoFile(selection.selectedVideoFileId)
+        } else {
+            sessionStore.currentSnapshot()
+        }
     }
 
     override suspend fun selectVideoFile(
@@ -77,10 +84,14 @@ class NoopTorrentPlaybackBackend(
         val playbackTarget = sessionId?.let { engine.selectVideoFile(it, fileId) }
         return sessionStore.updateSnapshot {
             it.copy(
-                phase = TorrentPlaybackPhase.AwaitingBackend,
+                phase = if (playbackTarget?.proxyUrl != null) TorrentPlaybackPhase.Buffering else TorrentPlaybackPhase.AwaitingBackend,
                 selectedVideoFileId = fileId,
                 proxyUrl = playbackTarget?.proxyUrl ?: it.proxyUrl,
-                statusMessage = "Selected file. Native torrent backend will attach the stream URL next.",
+                statusMessage = if (playbackTarget?.proxyUrl != null) {
+                    "Buffering selected torrent file..."
+                } else {
+                    "Selected file. Waiting for the torrent backend to expose the stream."
+                },
                 errorMessage = null,
             )
         }

@@ -32,6 +32,8 @@ data class SubtitleTrack(
     val id: String,
     val label: String,
     val language: String? = null,
+    val uri: String? = null,
+    val mimeType: String? = null,
 ) : Serializable
 
 data class TorrentDiscoveredFile(
@@ -61,6 +63,7 @@ data class TorrentPlaybackSession(
 data class AnimePlayerState(
     val request: AnimePlaybackRequest,
     val phase: TorrentPlaybackPhase = TorrentPlaybackPhase.AwaitingBackend,
+    val playbackUrl: String? = null,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val isLoading: Boolean = true,

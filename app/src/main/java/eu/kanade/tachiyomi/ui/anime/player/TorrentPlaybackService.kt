@@ -15,7 +15,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class TorrentPlaybackService : Service() {
@@ -56,7 +55,10 @@ class TorrentPlaybackService : Service() {
     }
 
     fun prepare(request: AnimePlaybackRequest) {
-        serviceScope.launch {
+        serviceScope.launch(Dispatchers.IO) {
+            if (currentRequest == request && snapshot.value.phase != TorrentPlaybackPhase.Idle) {
+                return@launch
+            }
             currentRequest = request
             _snapshot.value = TorrentPlaybackSnapshot(
                 phase = TorrentPlaybackPhase.Buffering,
@@ -68,21 +70,21 @@ class TorrentPlaybackService : Service() {
     }
 
     fun selectVideoFile(fileId: String) {
-        serviceScope.launch {
+        serviceScope.launch(Dispatchers.IO) {
             _snapshot.value = backend.selectVideoFile(fileId)
             currentRequest?.let { refreshNotification(it, _snapshot.value) }
         }
     }
 
     fun selectSubtitleTrack(trackId: String?) {
-        serviceScope.launch {
+        serviceScope.launch(Dispatchers.IO) {
             _snapshot.value = backend.selectSubtitleTrack(trackId)
             currentRequest?.let { refreshNotification(it, _snapshot.value) }
         }
     }
 
     fun stopPlaybackSession() {
-        serviceScope.launch {
+        serviceScope.launch(Dispatchers.IO) {
             backend.stopSession()
             currentRequest = null
             _snapshot.value = TorrentPlaybackSnapshot(

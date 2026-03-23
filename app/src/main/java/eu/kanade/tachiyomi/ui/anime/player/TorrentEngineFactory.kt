@@ -7,14 +7,17 @@ class TorrentEngineFactory(
 ) {
 
     fun create(): TorrentEngine {
-        return if (NativeTorrentLibraryLoader.isAvailable()) {
-            NativeTorrentEngine(
-                context = context,
-                nativeBridge = NativeTorrentBridge(),
-            )
-        } else {
-            PlaceholderTorrentEngine()
+        return runCatching {
+            JlibTorrentEngine(context)
+        }.getOrElse {
+            if (NativeTorrentLibraryLoader.isAvailable()) {
+                NativeTorrentEngine(
+                    context = context,
+                    nativeBridge = NativeTorrentBridge(),
+                )
+            } else {
+                PlaceholderTorrentEngine()
+            }
         }
     }
 }
-

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -43,7 +44,7 @@ class AnimePlayerController(
     private val _state = MutableStateFlow(
         AnimePlayerState(
             request = request,
-            statusMessage = "Player foundation ready. Torrent backend will attach here next.",
+            statusMessage = "Preparing torrent playback...",
         ),
     )
     val state: StateFlow<AnimePlayerState> = _state.asStateFlow()
@@ -51,6 +52,8 @@ class AnimePlayerController(
     private var playbackService: TorrentPlaybackService? = null
     private var isServiceBound = false
     private var snapshotJob: Job? = null
+    private var preparedPlaybackUrl: String? = null
+    private var preparedSidecarSubtitleId: String? = null
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as? TorrentPlaybackService.LocalBinder ?: return
@@ -100,8 +103,8 @@ class AnimePlayerController(
         override fun onTracksChanged(tracks: Tracks) {
             _state.update {
                 it.copy(
-                    availableSubtitleTracks = currentSubtitleTracks(),
-                    selectedSubtitleTrackId = currentSelectedSubtitleTrackId(),
+                    availableSubtitleTracks = mergeSubtitleTracks(it.availableSubtitleTracks),
+                    selectedSubtitleTrackId = currentSelectedSubtitleTrackId() ?: it.selectedSubtitleTrackId,
                 )
             }
         }
@@ -152,10 +155,13 @@ class AnimePlayerController(
                 _state.update {
                     it.copy(
                         phase = snapshot.phase,
+                        playbackUrl = snapshot.proxyUrl ?: it.playbackUrl,
                         isLoading = snapshot.phase == TorrentPlaybackPhase.Buffering || snapshot.phase == TorrentPlaybackPhase.Idle,
                         isBuffering = snapshot.phase == TorrentPlaybackPhase.Buffering,
                         availableVideoFiles = snapshot.availableVideoFiles,
-                        availableSubtitleTracks = snapshot.availableSubtitleTracks.ifEmpty { it.availableSubtitleTracks },
+                        availableSubtitleTracks = mergeSubtitleTracks(
+                            snapshot.availableSubtitleTracks.ifEmpty { it.availableSubtitleTracks },
+                        ),
                         selectedVideoFileId = snapshot.selectedVideoFileId,
                         selectedSubtitleTrackId = snapshot.selectedSubtitleTrackId,
                         statusMessage = snapshot.statusMessage,
@@ -169,16 +175,11 @@ class AnimePlayerController(
 
     private fun preparePlayerIfNeeded(snapshot: TorrentPlaybackSnapshot) {
         val proxyUrl = snapshot.proxyUrl ?: return
-        if (player.currentMediaItem?.localConfiguration?.uri.toString() == proxyUrl) return
-
-        val mediaItem = MediaItem.fromUri(proxyUrl)
-        player.setMediaItem(mediaItem)
-        player.prepare()
-        player.playWhenReady = true
-        val resumePosition = state.value.positionMs
-        if (resumePosition > 0L) {
-            player.seekTo(resumePosition)
-        }
+        preparePlayer(
+            playbackUrl = proxyUrl,
+            selectedSubtitleTrackId = snapshot.selectedSubtitleTrackId,
+            subtitleTracks = snapshot.availableSubtitleTracks,
+        )
     }
 
     private fun observePlayerPositions() {
@@ -190,13 +191,20 @@ class AnimePlayerController(
                         positionMs = player.currentPosition.takeIf { it >= 0L } ?: it.positionMs,
                         durationMs = duration,
                         bufferedPositionMs = player.bufferedPosition.coerceAtLeast(0L),
-                        availableSubtitleTracks = currentSubtitleTracks().ifEmpty { it.availableSubtitleTracks },
+                        availableSubtitleTracks = mergeSubtitleTracks(it.availableSubtitleTracks),
                         selectedSubtitleTrackId = currentSelectedSubtitleTrackId() ?: it.selectedSubtitleTrackId,
                     )
                 }
                 delay(1_000)
             }
         }
+    }
+
+    private fun mergeSubtitleTracks(
+        serviceTracks: List<SubtitleTrack>,
+    ): List<SubtitleTrack> {
+        val nonEmbeddedTracks = serviceTracks.filterNot { it.id.startsWith("embedded:") }
+        return nonEmbeddedTracks + currentSubtitleTracks()
     }
 
     private fun currentSubtitleTracks(): List<SubtitleTrack> {
@@ -245,6 +253,14 @@ class AnimePlayerController(
                     .clearOverridesOfType(C.TRACK_TYPE_TEXT)
                     .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
                     .build()
+                playbackService?.selectSubtitleTrack(null)
+                state.value.playbackUrl?.let { playbackUrl ->
+                    preparePlayer(
+                        playbackUrl = playbackUrl,
+                        selectedSubtitleTrackId = null,
+                        subtitleTracks = state.value.availableSubtitleTracks,
+                    )
+                }
             }
             trackId.startsWith("embedded:") -> {
                 val parts = trackId.removePrefix("embedded:").split(':')
@@ -266,7 +282,22 @@ class AnimePlayerController(
                     }
                 }
             }
-            else -> playbackService?.selectSubtitleTrack(trackId)
+            else -> {
+                player.trackSelectionParameters = player.trackSelectionParameters
+                    .buildUpon()
+                    .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                    .build()
+                playbackService?.selectSubtitleTrack(trackId)
+                state.value.playbackUrl?.let { playbackUrl ->
+                    preparePlayer(
+                        playbackUrl = playbackUrl,
+                        selectedSubtitleTrackId = trackId,
+                        subtitleTracks = state.value.availableSubtitleTracks,
+                    )
+                }
+                playbackService?.selectSubtitleTrack(trackId)
+            }
         }
 
         _state.update {
@@ -275,7 +306,42 @@ class AnimePlayerController(
                 statusMessage = if (trackId == null) "Subtitles disabled" else "Selected subtitle track",
             )
         }
-        playbackService?.selectSubtitleTrack(trackId)
+    }
+
+    private fun preparePlayer(
+        playbackUrl: String,
+        selectedSubtitleTrackId: String?,
+        subtitleTracks: List<SubtitleTrack>,
+    ) {
+        val sidecarTrack = subtitleTracks.firstOrNull {
+            it.id == selectedSubtitleTrackId && !it.uri.isNullOrBlank()
+        }
+        if (preparedPlaybackUrl == playbackUrl && preparedSidecarSubtitleId == sidecarTrack?.id) {
+            return
+        }
+
+        val resumePosition = player.currentPosition.takeIf { it > 0L } ?: state.value.positionMs
+        val mediaItemBuilder = MediaItem.Builder()
+            .setUri(playbackUrl)
+
+        sidecarTrack?.uri?.let { subtitleUri ->
+            mediaItemBuilder.setSubtitleConfigurations(
+                listOf(
+                    MediaItem.SubtitleConfiguration.Builder(subtitleUri.toUri())
+                        .setLabel(sidecarTrack.label)
+                        .setLanguage(sidecarTrack.language)
+                        .setMimeType(sidecarTrack.mimeType)
+                        .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                        .build(),
+                ),
+            )
+        }
+
+        player.setMediaItem(mediaItemBuilder.build(), resumePosition)
+        player.prepare()
+        player.playWhenReady = true
+        preparedPlaybackUrl = playbackUrl
+        preparedSidecarSubtitleId = sidecarTrack?.id
     }
 
     fun persistProgress(forceSeen: Boolean = false) {

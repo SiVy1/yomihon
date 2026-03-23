@@ -27,6 +27,7 @@ data class TorrentEngineSession(
     val sessionId: String,
     val discoveredFiles: List<TorrentDiscoveredFile>,
     val proxyUrl: String? = null,
+    val subtitleTrackUrls: Map<String, String> = emptyMap(),
 )
 
 data class TorrentEnginePlaybackTarget(
@@ -113,4 +114,3 @@ class PlaceholderTorrentEngine : TorrentEngine {
         return extension in setOf("mkv", "mp4", "avi", "webm", "m4v", "ts")
     }
 }
-

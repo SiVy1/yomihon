@@ -1,6 +1,8 @@
 package eu.kanade.tachiyomi.ui.anime.player
 
 import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 
 class NativeTorrentEngine(
@@ -22,6 +24,8 @@ class NativeTorrentEngine(
             infoHash = request.descriptor.infoHash,
             storageDirectory = sessionDirectory.absolutePath,
             displayName = request.descriptor.releaseTitle,
+            sizeBytes = request.descriptor.sizeBytes,
+            subtitleHint = request.descriptor.subtitleHint,
         )
 
         return TorrentEngineSession(
@@ -38,8 +42,8 @@ class NativeTorrentEngine(
         return nativeBridge.selectVideoFile(
             sessionId = sessionId,
             fileId = fileId,
-        )?.let {
-            TorrentEnginePlaybackTarget(proxyUrl = it)
+        )?.let { proxyUrl ->
+            TorrentEnginePlaybackTarget(proxyUrl = proxyUrl)
         }
     }
 
@@ -75,14 +79,26 @@ class NativeTorrentBridge {
         infoHash: String?,
         storageDirectory: String,
         displayName: String,
+        sizeBytes: Long?,
+        subtitleHint: String?,
     ): NativePrepareResult {
         return if (NativeTorrentLibraryLoader.isAvailable()) {
-            nativePrepareSession(
+            NativeTorrentJni.prepareSessionJson(
                 magnetUri = magnetUri,
                 torrentUrl = torrentUrl,
                 infoHash = infoHash,
                 storageDirectory = storageDirectory,
                 displayName = displayName,
+                sizeBytes = sizeBytes ?: -1L,
+                subtitleHint = subtitleHint,
+            )?.let(::parsePrepareResult) ?: fallbackPrepareSession(
+                magnetUri = magnetUri,
+                torrentUrl = torrentUrl,
+                infoHash = infoHash,
+                storageDirectory = storageDirectory,
+                displayName = displayName,
+                sizeBytes = sizeBytes,
+                subtitleHint = subtitleHint,
             )
         } else {
             fallbackPrepareSession(
@@ -91,6 +107,8 @@ class NativeTorrentBridge {
                 infoHash = infoHash,
                 storageDirectory = storageDirectory,
                 displayName = displayName,
+                sizeBytes = sizeBytes,
+                subtitleHint = subtitleHint,
             )
         }
     }
@@ -100,7 +118,10 @@ class NativeTorrentBridge {
         fileId: String,
     ): String? {
         return if (NativeTorrentLibraryLoader.isAvailable()) {
-            nativeSelectVideoFile(sessionId, fileId)
+            NativeTorrentJni.selectVideoFileProxyUrl(
+                sessionId = sessionId,
+                fileId = fileId,
+            )
         } else {
             null
         }
@@ -111,7 +132,10 @@ class NativeTorrentBridge {
         trackId: String?,
     ) {
         if (NativeTorrentLibraryLoader.isAvailable()) {
-            nativeSelectSubtitleTrack(sessionId, trackId)
+            NativeTorrentJni.selectSubtitleTrack(
+                sessionId = sessionId,
+                trackId = trackId,
+            )
         }
     }
 
@@ -119,8 +143,31 @@ class NativeTorrentBridge {
         sessionId: String,
     ) {
         if (NativeTorrentLibraryLoader.isAvailable()) {
-            nativeStopSession(sessionId)
+            NativeTorrentJni.stopSession(sessionId)
         }
+    }
+
+    private fun parsePrepareResult(
+        json: String,
+    ): NativePrepareResult {
+        val root = JSONObject(json)
+        val files = root.optJSONArray("files") ?: JSONArray()
+        return NativePrepareResult(
+            sessionId = root.optString("sessionId").ifBlank { "native-session" },
+            files = buildList {
+                for (index in 0 until files.length()) {
+                    val item = files.optJSONObject(index) ?: continue
+                    add(
+                        TorrentDiscoveredFile(
+                            id = item.optString("id").ifBlank { "file-$index" },
+                            path = item.optString("path").ifBlank { "episode-$index.mkv" },
+                            sizeBytes = item.optLong("sizeBytes").takeIf { it >= 0L },
+                        ),
+                    )
+                }
+            },
+            proxyUrl = root.optString("proxyUrl").takeIf { it.isNotBlank() },
+        )
     }
 
     private fun fallbackPrepareSession(
@@ -129,53 +176,70 @@ class NativeTorrentBridge {
         infoHash: String?,
         storageDirectory: String,
         displayName: String,
+        sizeBytes: Long?,
+        subtitleHint: String?,
     ): NativePrepareResult {
         val normalizedName = displayName.substringAfterLast('/').ifBlank { "episode.mkv" }
         val mediaPath = if ('.' in normalizedName) normalizedName else "$normalizedName.mkv"
-        val subtitlePath = displayName
-            .substringBeforeLast('.', displayName)
-            .substringAfterLast('/')
-            .ifBlank { "subtitle" } + ".ass"
+        val sidecarSubtitle = subtitleHint
+            ?.takeIf { it.isNotBlank() }
+            ?.let {
+                if ('.' in it) it.substringAfterLast('/') else "${it.substringAfterLast('/')}.ass"
+            }
+            ?: displayName.substringBeforeLast('.', displayName).substringAfterLast('/').ifBlank { "subtitle" } + ".ass"
 
         return NativePrepareResult(
-            sessionId = infoHash ?: magnetUri?.hashCode()?.toString() ?: torrentUrl?.hashCode()?.toString() ?: storageDirectory.hashCode().toString(),
+            sessionId = infoHash
+                ?: magnetUri?.hashCode()?.toString()
+                ?: torrentUrl?.hashCode()?.toString()
+                ?: storageDirectory.hashCode().toString(),
             files = buildList {
                 add(
                     TorrentDiscoveredFile(
                         id = "video-hint",
                         path = mediaPath,
+                        sizeBytes = sizeBytes,
                     ),
                 )
                 add(
                     TorrentDiscoveredFile(
                         id = "subtitle-hint",
-                        path = subtitlePath,
+                        path = sidecarSubtitle,
                     ),
                 )
             },
             proxyUrl = null,
         )
     }
+}
 
-    private external fun nativePrepareSession(
+internal object NativeTorrentJni {
+
+    @JvmStatic
+    external fun prepareSessionJson(
         magnetUri: String?,
         torrentUrl: String?,
         infoHash: String?,
         storageDirectory: String,
         displayName: String,
-    ): NativePrepareResult
+        sizeBytes: Long,
+        subtitleHint: String?,
+    ): String?
 
-    private external fun nativeSelectVideoFile(
+    @JvmStatic
+    external fun selectVideoFileProxyUrl(
         sessionId: String,
         fileId: String,
     ): String?
 
-    private external fun nativeSelectSubtitleTrack(
+    @JvmStatic
+    external fun selectSubtitleTrack(
         sessionId: String,
         trackId: String?,
     )
 
-    private external fun nativeStopSession(
+    @JvmStatic
+    external fun stopSession(
         sessionId: String,
     )
 }
@@ -185,4 +249,3 @@ data class NativePrepareResult(
     val files: List<TorrentDiscoveredFile>,
     val proxyUrl: String? = null,
 )
-
