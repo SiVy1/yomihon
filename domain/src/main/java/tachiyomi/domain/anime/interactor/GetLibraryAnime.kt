@@ -30,6 +30,7 @@ class GetLibraryAnime(
             }
             .catch {
                 this@GetLibraryAnime.logcat(LogPriority.ERROR, it)
+                emit(emptyList())
             }
     }
 }

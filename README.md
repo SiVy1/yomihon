@@ -1,86 +1,70 @@
 <div align="center">
 
-<a href="https://mihon.app">
-    <img src="./.github/assets/logo.png" alt="Mihon logo" title="Mihon logo" width="80"/>
-</a>
+<img src="./.github/assets/logo.png" alt="Yomihon logo" title="Yomihon logo" width="80"/>
 
-# Mihon [App](#)
+# Yomihon
 
-### Full-featured reader
-Discover and read manga, webtoons, comics, and more – easier than ever on your Android device.
+### Android reader fork for manga, anime, and light novels
 
-[![Discord server](https://img.shields.io/discord/1195734228319617024.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/mihon)
-[![GitHub downloads](https://img.shields.io/github/downloads/mihonapp/mihon/total?label=downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://mihon.app/download)
+Yomihon is an independent fork of Mihon for Android. This repository keeps the Mihon codebase as its foundation while expanding it into a broader reader and media app with first-class manga, anime, and light novel flows.
 
-[![CI](https://img.shields.io/github/actions/workflow/status/mihonapp/mihon/build.yml?labelColor=27303D)](https://github.com/mihonapp/mihon/actions/workflows/build_push.yml)
-[![License: Apache-2.0](https://img.shields.io/github/license/mihonapp/mihon?labelColor=27303D&color=0877d2)](/LICENSE)
-[![Translation status](https://img.shields.io/weblate/progress/mihon?labelColor=27303D&color=946300)](https://hosted.weblate.org/engage/mihon/)
+[![CI](https://img.shields.io/github/actions/workflow/status/SiVy1/yomihon/build.yml?label=CI&labelColor=27303D)](https://github.com/SiVy1/yomihon/actions/workflows/build.yml)
+[![Latest release](https://img.shields.io/github/v/release/SiVy1/yomihon?label=release&labelColor=06599d&color=043b69)](https://github.com/SiVy1/yomihon/releases)
+[![License: Apache-2.0](https://img.shields.io/github/license/SiVy1/yomihon?labelColor=27303D&color=0877d2)](./LICENSE)
+
+</div>
 
 ## Download
 
-[![Mihon Stable](https://img.shields.io/github/release/mihonapp/mihon.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://mihon.app/download)
-[![Mihon Beta](https://img.shields.io/github/v/release/mihonapp/mihon-preview.svg?maxAge=3600&label=Beta&labelColor=2c2c47&color=1c1c39)](https://mihon.app/download)
+Releases for Yomihon are published on GitHub:
 
-*Requires Android 8.0 or higher.*
+[Latest release](https://github.com/SiVy1/yomihon/releases/latest)
+
+Requires Android 8.0 or higher.
 
 ## Features
 
-<div align="left">
+- Manga and comics: keep Mihon's core library, reader, browse, backup, and local-content workflows for manga, webtoons, and comics.
+- Anime support: browse dedicated anime sources, use anime-specific search and details screens, manage anime library/history data, and launch supported episode playback flows.
+- Torrent-backed playback: play supported anime releases through the built-in torrent playback pipeline included in this fork.
+- Light novel reading: open text-first content in a dedicated novel viewer with its own display mode, font size, line spacing, side margin, and justification settings.
+- Custom extensions: build and ship Yomihon-specific sources such as the examples under [`custom-extensions`](./custom-extensions), including anime and novel extensions.
+- Organization and integrations: use categories, backups, configurable reader behavior, and tracker integrations for supported library flows with [MyAnimeList](https://myanimelist.net/), [AniList](https://anilist.co/), [Kitsu](https://kitsu.app/), [MangaUpdates](https://mangaupdates.com), [Shikimori](https://shikimori.one), and [Bangumi](https://bgm.tv/).
 
-* Local reading of content.
-* A configurable reader with multiple viewers, reading directions and other settings.
-* Tracker support: [MyAnimeList](https://myanimelist.net/), [AniList](https://anilist.co/), [Kitsu](https://kitsu.app/), [MangaUpdates](https://mangaupdates.com), [Shikimori](https://shikimori.one), and [Bangumi](https://bgm.tv/) support.
-* Categories to organize your library.
-* Light and dark themes.
-* Schedule updating your library for new chapters.
-* Create backups locally to read offline or to your desired cloud service.
-* Plus much more...
+## Fork Status
 
-</div>
+Yomihon is not the official Mihon project. It is a derivative work maintained in this repository and distributed under the Apache License 2.0.
+
+Upstream Mihon trademarks, branding, community channels, and websites belong to their respective owners. This README intentionally points to Yomihon resources where possible so the fork is not presented as the upstream project.
 
 ## Contributing
 
-[Code of conduct](./CODE_OF_CONDUCT.md) · [Contributing guide](./CONTRIBUTING.md)
+[Code of conduct](./CODE_OF_CONDUCT.md) | [Contributing guide](./CONTRIBUTING.md) | [Issues](https://github.com/SiVy1/yomihon/issues) | [Pull requests](https://github.com/SiVy1/yomihon/pulls)
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+Pull requests are welcome. For larger changes, open an issue first so the approach can be discussed before implementation.
 
-Before reporting a new issue, take a look at the [FAQ](https://mihon.app/docs/faq/general), the [changelog](https://mihon.app/changelogs/) and the already opened [issues](https://github.com/mihonapp/mihon/issues); if you got any questions, join our [Discord server](https://discord.gg/mihon).
+Before reporting a bug, check [CHANGELOG.md](./CHANGELOG.md) and existing [issues](https://github.com/SiVy1/yomihon/issues).
 
+## Credits
 
-### Repositories
+Yomihon builds on the work of Mihon, Tachiyomi, and the wider contributor community around that ecosystem.
 
-[![mihonapp/website - GitHub](https://github-readme-stats.vercel.app/api/pin/?username=mihonapp&repo=website&bg_color=161B22&text_color=c9d1d9&title_color=0877d2&icon_color=0877d2&border_radius=8&hide_border=true&description_lines_count=2)](https://github.com/mihonapp/website/)
-[![mihonapp/bitmap.kt - GitHub](https://github-readme-stats.vercel.app/api/pin/?username=mihonapp&repo=bitmap.kt&bg_color=161B22&text_color=c9d1d9&title_color=0877d2&icon_color=0877d2&border_radius=8&hide_border=true&description_lines_count=2)](https://github.com/mihonapp/bitmap.kt/)
-
-### Credits
-
-Thank you to all the people who have contributed!
-
-<a href="https://github.com/mihonapp/mihon/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=mihonapp/mihon" alt="Mihon app contributors" title="Mihon app contributors" width="800"/>
+<a href="https://github.com/SiVy1/yomihon/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=SiVy1/yomihon" alt="Yomihon contributors" title="Yomihon contributors" width="800"/>
 </a>
 
-### Disclaimer
+## Disclaimer
 
-The developer(s) of this application does not have any affiliation with the content providers available, and this application hosts zero content.
+The developer(s) of this application are not affiliated with the content providers available through sources, and the application hosts no content.
 
-### License
+## License
 
-<pre>
-Copyright © 2015 Javier Tomás
-Copyright © 2024 Mihon Open Source Project
+This repository is licensed under [Apache License 2.0](./LICENSE).
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+Repository-level copyright notices currently include:
 
-http://www.apache.org/licenses/LICENSE-2.0
+- Copyright (c) 2015 Javier Tomas
+- Copyright (c) 2024 Mihon Open Source Project
+- Copyright (c) 2026 Yomihon contributors
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-</pre>
-
-</div>
+When redistributing derivative works, keep the required license and attribution notices from upstream and from this fork.

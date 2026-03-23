@@ -6,12 +6,14 @@ import eu.kanade.tachiyomi.extension.ExtensionManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import uy.kohesive.injekt.injectLazy
 
 class GetIncognitoState(
     private val basePreferences: BasePreferences,
     private val sourcePreferences: SourcePreferences,
-    private val extensionManager: ExtensionManager,
 ) {
+    private val extensionManager: ExtensionManager by injectLazy()
+
     fun await(sourceId: Long?): Boolean {
         if (basePreferences.incognitoMode.get()) return true
         if (sourceId == null) return false

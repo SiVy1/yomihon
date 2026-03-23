@@ -27,7 +27,6 @@ import java.util.concurrent.ConcurrentHashMap
 
 class AndroidSourceManager(
     private val context: Context,
-    private val extensionManager: ExtensionManager,
     private val sourceRepository: StubSourceRepository,
 ) : SourceManager {
 
@@ -35,6 +34,7 @@ class AndroidSourceManager(
     override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
     private val downloadManager: DownloadManager by injectLazy()
+    private val extensionManager: ExtensionManager by injectLazy()
 
     private val scope = CoroutineScope(Job() + Dispatchers.IO)
 

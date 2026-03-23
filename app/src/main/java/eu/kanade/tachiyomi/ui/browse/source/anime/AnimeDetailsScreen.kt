@@ -6,15 +6,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,10 +23,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
@@ -41,10 +35,12 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.relativeDateText
 import eu.kanade.presentation.manga.components.ChapterHeader
 import eu.kanade.presentation.manga.components.ExpandableMangaDescription
+import eu.kanade.presentation.manga.components.MangaActionRow
 import eu.kanade.presentation.manga.components.MangaChapterListItem
 import eu.kanade.presentation.manga.components.MangaInfoBox
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.data.download.model.Download
+import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.source.getNameForMangaInfo
 import eu.kanade.tachiyomi.source.model.SAnime
 import eu.kanade.tachiyomi.source.model.SEpisode
@@ -54,7 +50,9 @@ import eu.kanade.tachiyomi.ui.anime.player.AnimePlaybackRequest
 import eu.kanade.tachiyomi.ui.anime.player.AnimePlayerActivity
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.ui.category.CategoryScreen
+import eu.kanade.tachiyomi.ui.setting.SettingsScreen
 import eu.kanade.tachiyomi.util.system.copyToClipboard
+import kotlinx.coroutines.launch
 import tachiyomi.domain.anime.model.Anime
 import tachiyomi.domain.anime.model.Episode
 import tachiyomi.domain.library.service.LibraryPreferences
@@ -68,6 +66,8 @@ import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.presentation.core.util.shouldExpandFAB
 import tachiyomi.presentation.core.util.plus
 import tachiyomi.i18n.MR
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 data class AnimeDetailsScreen(
     val sourceId: Long,
@@ -80,9 +80,12 @@ data class AnimeDetailsScreen(
         val state by screenModel.state.collectAsState()
         val navigator = LocalNavigator.currentOrThrow
         val snackbarHostState = remember { SnackbarHostState() }
+        val scope = rememberCoroutineScope()
         val context = androidx.compose.ui.platform.LocalContext.current
         val listState = rememberLazyListState()
         val sourceName = remember(screenModel.source) { screenModel.source.getNameForMangaInfo() }
+        val trackerManager = remember { Injekt.get<TrackerManager>() }
+        val hasLoggedInTrackers = remember { trackerManager.loggedInTrackers().isNotEmpty() }
         val pseudoManga = remember(state.anime, state.localAnime) {
             state.asPseudoManga(sourceId = sourceId)
         }
@@ -159,12 +162,13 @@ data class AnimeDetailsScreen(
                         }
 
                         item {
-                            AnimeActionRow(
+                            MangaActionRow(
                                 favorite = state.localAnime?.favorite == true,
-                                hasResume = hasResume,
-                                onToggleLibrary = screenModel::toggleLibrary,
-                                onContinueWatching = continueEpisode?.let { { screenModel.selectEpisode(it) } },
-                                onOpenWebView = (screenModel.source as? HttpSource)?.let { source ->
+                                trackingCount = 0,
+                                nextUpdate = null,
+                                isUserIntervalMode = false,
+                                onAddToLibraryClicked = screenModel::toggleLibrary,
+                                onWebViewClicked = (screenModel.source as? HttpSource)?.let { source ->
                                     {
                                         navigator.push(
                                             WebViewScreen(
@@ -175,6 +179,18 @@ data class AnimeDetailsScreen(
                                         )
                                     }
                                 },
+                                onWebViewLongClicked = null,
+                                onTrackingClicked = {
+                                    if (!hasLoggedInTrackers) {
+                                        navigator.push(SettingsScreen(SettingsScreen.Destination.Tracking))
+                                    } else {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Anime tracking isn't wired yet.")
+                                        }
+                                    }
+                                },
+                                onEditIntervalClicked = null,
+                                onEditCategory = null,
                             )
                         }
 
@@ -255,74 +271,6 @@ data class AnimeDetailsScreen(
                 )
             }
             null -> Unit
-        }
-    }
-}
-
-@Composable
-private fun AnimeActionRow(
-    favorite: Boolean,
-    hasResume: Boolean,
-    onToggleLibrary: () -> Unit,
-    onContinueWatching: (() -> Unit)?,
-    onOpenWebView: (() -> Unit)?,
-) {
-    val defaultActionButtonColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-
-    Row(modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp)) {
-        AnimeActionButton(
-            title = if (favorite) {
-                stringResource(MR.strings.in_library)
-            } else {
-                stringResource(MR.strings.add_to_library)
-            },
-            icon = if (favorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-            color = if (favorite) MaterialTheme.colorScheme.primary else defaultActionButtonColor,
-            onClick = onToggleLibrary,
-        )
-        AnimeActionButton(
-            title = stringResource(
-                if (hasResume) MR.strings.action_resume else MR.strings.action_start,
-            ),
-            icon = Icons.Filled.PlayArrow,
-            color = if (onContinueWatching != null) MaterialTheme.colorScheme.primary else defaultActionButtonColor,
-            onClick = { onContinueWatching?.invoke() },
-        )
-        if (onOpenWebView != null) {
-            AnimeActionButton(
-                title = stringResource(MR.strings.action_web_view),
-                icon = Icons.Outlined.Public,
-                color = defaultActionButtonColor,
-                onClick = onOpenWebView,
-            )
-        }
-    }
-}
-
-@Composable
-private fun RowScope.AnimeActionButton(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    color: Color,
-    onClick: () -> Unit,
-) {
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier.weight(1f),
-    ) {
-        androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
-            Text(
-                text = title,
-                color = color,
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center,
-            )
         }
     }
 }

@@ -169,7 +169,7 @@ class AnimeDetailsScreenModel(
                 )
             }
             defaultCategoryId == 0L || categories.isEmpty() -> {
-                setAnimeCategories.await(localAnime.id, emptyList())
+                setAnimeCategories.await(localAnime.id, listOf(0L))
                 updateAnime.await(
                     AnimeUpdate(
                         id = localAnime.id,
@@ -194,7 +194,7 @@ class AnimeDetailsScreenModel(
 
     fun moveAnimeToCategoriesAndAddToLibrary(anime: Anime, categoryIds: List<Long>) {
         screenModelScope.launchIO {
-            setAnimeCategories.await(anime.id, categoryIds)
+            setAnimeCategories.await(anime.id, categoryIds.ifEmpty { listOf(0L) })
             val success = updateAnime.await(
                 AnimeUpdate(
                     id = anime.id,

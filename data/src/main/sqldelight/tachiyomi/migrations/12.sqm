@@ -14,11 +14,7 @@ CREATE INDEX IF NOT EXISTS idx_animes_categories_category_id ON animes_categorie
 INSERT INTO animes_categories(anime_id, category_id)
 SELECT
     animes._id,
-    CASE
-        WHEN EXISTS(SELECT 1 FROM preferences WHERE key = 'default_category' AND CAST(value AS INTEGER) > 0)
-        THEN CAST((SELECT value FROM preferences WHERE key = 'default_category') AS INTEGER)
-        ELSE 0
-    END
+    0
 FROM animes
 WHERE animes.favorite = 1
 AND NOT EXISTS (
