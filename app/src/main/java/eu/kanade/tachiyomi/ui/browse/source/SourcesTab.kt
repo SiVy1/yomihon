@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.browse.source
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.TravelExplore
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -17,6 +18,7 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.TabContent
 import eu.kanade.tachiyomi.source.SourceContentType
 import eu.kanade.tachiyomi.ui.browse.source.anime.BrowseAnimeSourceScreen
+import eu.kanade.tachiyomi.ui.browse.source.anime.globalsearch.AnimeGlobalSearchScreen
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
 import kotlinx.collections.immutable.persistentListOf
@@ -38,6 +40,11 @@ fun Screen.sourcesTab(): TabContent {
                 title = stringResource(MR.strings.action_global_search),
                 icon = Icons.Outlined.TravelExplore,
                 onClick = { navigator.push(GlobalSearchScreen()) },
+            ),
+            AppBar.Action(
+                title = "Anime search",
+                icon = Icons.Outlined.PlayCircle,
+                onClick = { navigator.push(AnimeGlobalSearchScreen()) },
             ),
             AppBar.Action(
                 title = stringResource(MR.strings.action_filter),
